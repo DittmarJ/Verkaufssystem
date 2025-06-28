@@ -513,6 +513,8 @@
         <div class="header-bar">
             <div class="flex items-center gap-2">
                 <span class="user-badge">Frau Becker</span>
+                <!-- New span to display userId for debugging -->
+                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...]</span>
                 <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
                 <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
                 <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
@@ -662,6 +664,7 @@
         const changeHeader = document.getElementById('changeHeader');
         const currentDateElem = document.getElementById('currentDate');
         const currentTimeElem = document.getElementById('currentTime');
+        const displayUserId = document.getElementById('displayUserId'); // New: Element to display userId
 
         const messageBoxOverlay = document.getElementById('messageBoxOverlay');
         const messageBoxTitle = document.getElementById('messageBoxTitle');
@@ -722,6 +725,7 @@
                         if (user) {
                             // User is signed in.
                             userId = user.uid;
+                            displayUserId.textContent = `[UserID: ${userId}]`; // Update UI with actual userId
                             console.log("User authenticated. New userId:", userId);
                             if (!firestoreListenersSetup) {
                                 setupFirestoreListeners(); // Start listening to data changes once user is known
@@ -737,6 +741,7 @@
                                 } catch (anonSignInError) {
                                     console.error("Anonymous sign-in failed:", anonSignInError);
                                     userId = 'anonymous_fallback'; // Completely fail and go to non-persistent mode
+                                    displayUserId.textContent = `[UserID: ${userId} (Fehler)]`; // Indicate fallback
                                     console.warn("Authentication failed, proceeding without persistent data storage for this session.");
                                     renderCategories();
                                     renderOrder();
@@ -749,6 +754,7 @@
                     });
                 } else {
                     console.warn("Firebase configuration not provided or incomplete. Data will not be persisted.");
+                    displayUserId.textContent = `[UserID: Nicht konfiguriert]`; // Indicate no config
                     renderCategories();
                     renderOrder();
                     inputDisplay.textContent = currentInput;
@@ -756,6 +762,7 @@
             } catch (error) {
                 console.error("Fatal error during Firebase app initialization:", error);
                 showMessageBox('Fehler', 'Schwerwiegender Fehler beim Initialisieren von Firebase. Die App wird ohne Datenspeicherung gestartet.');
+                displayUserId.textContent = `[UserID: Fehler]`; // Indicate fatal error
                 renderCategories();
                 renderOrder();
                 inputDisplay.textContent = currentInput;
@@ -1832,7 +1839,7 @@
                 renderAdminConfig(); // Render the main admin menu
                 console.log("Admin login successful. Entering admin mode.");
             } else {
-                showMessageBox('Login fehlgeschritten', 'Falscher Benutzername oder Passwort.');
+                showMessageBox('Login fehlgeschlagen', 'Falscher Benutzername oder Passwort.');
                 console.warn("Admin login failed.");
             }
         });
