@@ -699,12 +699,14 @@
                     db = getFirestore(app);
                     auth = getAuth(app);
 
+                    console.log("Firebase initialized. Initial userId:", userId);
+
                     // Listen for authentication state changes
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
                             // User is signed in.
                             userId = user.uid;
-                            console.log("Firebase initialized and user authenticated:", userId);
+                            console.log("User authenticated. New userId:", userId);
                             if (!firestoreListenersSetup) {
                                 setupFirestoreListeners(); // Start listening to data changes once user is known
                                 firestoreListenersSetup = true;
@@ -756,10 +758,11 @@
         // --- Firestore Data Listeners ---
         function setupFirestoreListeners() {
             if (!db || !userId || userId === 'anonymous_fallback') { // Also check for fallback ID
-                console.warn("Firestore or User ID not available for listeners or in fallback mode.");
+                console.warn("Firestore or User ID not available for listeners or in fallback mode. Listeners will not be set.");
                 return;
             }
 
+            console.log("Setting up Firestore listeners for userId:", userId);
             loadingMessage.classList.remove('hidden'); // Show loading message
             rightPanel.innerHTML = ''; // Clear right panel while loading
 
@@ -771,12 +774,16 @@
                     fetchedCategories.push({ id: doc.id, ...doc.data() });
                 });
                 posData.categories = fetchedCategories;
+                console.log("onSnapshot for categories triggered. Fetched categories:", fetchedCategories);
+
                 if (!isAdminMode) {
                     renderCategories();
                 } else {
                     if (currentAdminView === 'categories') {
+                        console.log("Calling renderAdminCategoryManagement due to category snapshot update.");
                         renderAdminCategoryManagement(); // Re-render if in category admin view
                     } else if (currentAdminView === 'products') {
+                        console.log("Calling renderAdminProductManagement due to category snapshot update (for dropdown).");
                         renderAdminProductManagement(); // Re-render to update category dropdown
                     }
                 }
@@ -801,6 +808,8 @@
                     }
                 });
                 posData.products = fetchedProducts;
+                console.log("onSnapshot for products triggered. Fetched products:", fetchedProducts);
+
                 if (!isAdminMode) {
                     if (currentCategory) {
                          renderProducts(currentCategory);
@@ -809,6 +818,7 @@
                     }
                 } else {
                     if (currentAdminView === 'products') {
+                        console.log("Calling renderAdminProductManagement due to product snapshot update.");
                         renderAdminProductManagement(); // Re-render if in product admin view
                     }
                 }
@@ -827,7 +837,9 @@
                     fetchedSellers.push({ id: doc.id, ...doc.data() });
                 });
                 posData.sellers = fetchedSellers;
+                console.log("onSnapshot for sellers triggered. Fetched sellers:", fetchedSellers);
                 if (isAdminMode && currentAdminView === 'sellers') {
+                    console.log("Calling renderAdminSellerManagement due to seller snapshot update.");
                     renderAdminSellerManagement(); // Re-render if in seller admin view
                 }
                 loadingMessage.classList.add('hidden');
@@ -850,8 +862,10 @@
                 return;
             }
             try {
+                console.log("Attempting to save category:", category, "to Firestore for userId:", userId);
                 const categoryDocRef = doc(db, `artifacts/${appId}/users/${userId}/categories`, category.id);
                 await setDoc(categoryDocRef, { name: category.name, color: category.color, standName: category.standName || '' });
+                console.log("Category saved successfully to Firestore.");
             } catch (e) {
                 console.error("Error saving category: ", e);
                 showMessageBox('Fehler', `Fehler beim Speichern der Kategorie: ${e.message}`);
@@ -870,6 +884,7 @@
             try {
                 const categoryDocRef = doc(db, `artifacts/${appId}/users/${userId}/categories`, categoryId);
                 await deleteDoc(categoryDocRef);
+                console.log("Category deleted successfully:", categoryId);
 
                 // Also delete associated products
                 const productsToDeleteQuery = query(collection(db, `artifacts/${appId}/users/${userId}/products`), where("categoryId", "==", categoryId));
@@ -879,6 +894,8 @@
                     deletePromises.push(deleteDoc(productDoc.ref));
                 });
                 await Promise.all(deletePromises);
+                console.log("Associated products deleted for category:", categoryId);
+
             } catch (e) {
                 console.error("Error deleting category: ", e);
                 showMessageBox('Fehler', `Fehler beim Löschen der Kategorie: ${e.message}`);
@@ -895,9 +912,11 @@
                 return;
             }
             try {
+                console.log("Attempting to save product:", product, "to Firestore for userId:", userId);
                 // Auto-generate ID for new products
                 const productDocRef = doc(collection(db, `artifacts/${appId}/users/${userId}/products`));
                 await setDoc(productDocRef, product);
+                console.log("Product saved successfully to Firestore.");
             } catch (e) {
                 console.error("Error saving product: ", e);
                 showMessageBox('Fehler', `Fehler beim Speichern des Produkts: ${e.message}`);
@@ -916,6 +935,7 @@
             try {
                 const productDocRef = doc(db, `artifacts/${appId}/users/${userId}/products`, productId);
                 await deleteDoc(productDocRef);
+                console.log("Product deleted successfully:", productId);
             } catch (e) {
                 console.error("Error deleting product: ", e);
                 showMessageBox('Fehler', `Fehler beim Löschen des Produkts: ${e.message}`);
@@ -932,8 +952,10 @@
                 return;
             }
             try {
+                console.log("Attempting to save seller:", seller, "to Firestore for userId:", userId);
                 const sellerDocRef = doc(collection(db, `artifacts/${appId}/users/${userId}/sellers`));
                 await setDoc(sellerDocRef, { name: seller.name });
+                console.log("Seller saved successfully to Firestore.");
             } catch (e) {
                 console.error("Error saving seller: ", e);
                 showMessageBox('Fehler', `Fehler beim Speichern des Verkäufers: ${e.message}`);
@@ -952,6 +974,7 @@
             try {
                 const sellerDocRef = doc(db, `artifacts/${appId}/users/${userId}/sellers`, sellerId);
                 await deleteDoc(sellerDocRef);
+                console.log("Seller deleted successfully:", sellerId);
             } catch (e) {
                 console.error("Error deleting seller: ", e);
                 showMessageBox('Fehler', `Fehler beim Löschen des Verkäufers: ${e.message}`);
@@ -1329,27 +1352,34 @@
                     const menuOption = button.dataset.menuOption;
                     if (menuOption === 'categories') {
                         currentAdminView = 'categories';
+                        console.log("Admin menu navigation: Categories selected. Rendering Admin Category Management.");
                         renderAdminCategoryManagement();
                     } else if (menuOption === 'products') {
                         currentAdminView = 'products';
+                        console.log("Admin menu navigation: Products selected. Rendering Admin Product Management.");
                         renderAdminProductManagement();
                     } else if (menuOption === 'sellers') {
                         currentAdminView = 'sellers';
+                        console.log("Admin menu navigation: Sellers selected. Rendering Admin Seller Management.");
                         renderAdminSellerManagement();
                     }
                 } else if (action === 'back-to-admin-main') {
                     currentAdminView = 'main';
+                    console.log("Admin back to main menu. Rendering Admin Config.");
                     renderAdminConfig(); // This now renders the main admin menu
                 } else if (action === 'delete-category') {
                      if (confirm(`Sind Sie sicher, dass Sie Kategorie "${itemId}" löschen möchten? Alle zugehörigen Produkte werden ebenfalls gelöscht.`)) {
+                        console.log("Attempting to delete category:", itemId);
                         deleteCategoryFromFirestore(itemId);
                     }
                 } else if (action === 'delete-product') {
                     if (confirm(`Sind Sie sicher, dass Sie Produkt "${itemId}" löschen möchten?`)) {
+                        console.log("Attempting to delete product:", itemId);
                         deleteProductFromFirestore(itemId);
                     }
                 } else if (action === 'delete-seller') { // New seller delete action
                     if (confirm(`Sind Sie sicher, dass Sie Verkäufer "${itemId}" löschen möchten?`)) {
+                        console.log("Attempting to delete seller:", itemId);
                         deleteSellerFromFirestore(itemId);
                     }
                 }
@@ -1403,6 +1433,7 @@
         function renderCategories() {
             rightPanel.innerHTML = '';
             rightPanel.style.gridTemplateColumns = 'repeat(4, 1fr)';
+            console.log("Rendering POS categories. Categories available:", posData.categories.length);
 
             if (posData.categories.length === 0 && !isAdminMode) {
                  rightPanel.innerHTML = '<div class="col-span-4 text-center text-gray-400 text-lg">Keine Kategorien gefunden. Loggen Sie sich als Admin ein, um Kategorien hinzuzufügen.</div>';
@@ -1426,6 +1457,8 @@
         function renderProducts(categoryId) {
             rightPanel.innerHTML = '';
             rightPanel.style.gridTemplateColumns = 'repeat(4, 1fr)';
+            console.log("Rendering products for category ID:", categoryId);
+
 
             const backButton = document.createElement('button');
             backButton.classList.add('product-button', 'bg-gray-700');
@@ -1460,6 +1493,7 @@
             rightPanel.innerHTML = '';
             rightPanel.style.gridTemplateColumns = '1fr';
             rightPanel.classList.remove('admin-config-panel'); // Remove previous grid layout
+            console.log("Rendering Admin Main Menu.");
             
             const adminMenuDiv = document.createElement('div');
             adminMenuDiv.classList.add('admin-main-menu');
@@ -1493,6 +1527,7 @@
                 renderCategories();
                 keypadArea.classList.remove('hidden');
                 rightPanel.classList.remove('admin-config-panel');
+                console.log("Exited Admin Mode. Back to POS categories.");
             });
             adminMenuDiv.appendChild(backToPosButton);
 
@@ -1510,6 +1545,7 @@
             rightPanel.innerHTML = '';
             rightPanel.style.gridTemplateColumns = '1fr'; // Single column for this view
             rightPanel.classList.add('admin-config-panel'); // Apply admin panel layout
+            console.log("Rendering Admin Category Management.");
 
             const backToAdminMenuButton = document.createElement('button');
             backToAdminMenuButton.classList.add('product-button', 'bg-gray-700', 'col-span-full', 'mb-4');
@@ -1545,6 +1581,7 @@
             rightPanel.innerHTML = '';
             rightPanel.style.gridTemplateColumns = '1fr'; // Single column for this view
             rightPanel.classList.add('admin-config-panel'); // Apply admin panel layout
+            console.log("Rendering Admin Product Management.");
 
             const backToAdminMenuButton = document.createElement('button');
             backToAdminMenuButton.classList.add('product-button', 'bg-gray-700', 'col-span-full', 'mb-4');
@@ -1579,6 +1616,7 @@
             rightPanel.innerHTML = '';
             rightPanel.style.gridTemplateColumns = '1fr'; // Single column for this view
             rightPanel.classList.add('admin-config-panel'); // Apply admin panel layout
+            console.log("Rendering Admin Seller Management.");
 
             const backToAdminMenuButton = document.createElement('button');
             backToAdminMenuButton.classList.add('product-button', 'bg-gray-700', 'col-span-full', 'mb-4');
@@ -1622,6 +1660,7 @@
 
             // Populate Category List (if visible)
             if (categoryListAdmin) {
+                console.log("Populating admin category list with:", posData.categories.length, "items.");
                 posData.categories.forEach(category => {
                     const categoryItem = document.createElement('div');
                     categoryItem.classList.add('admin-config-item');
@@ -1645,6 +1684,7 @@
                 });
             }
             if (productListAdmin) {
+                console.log("Populating admin product list.");
                 for (const categoryId in posData.products) {
                     posData.products[categoryId].forEach(product => {
                         const productItem = document.createElement('div');
@@ -1662,6 +1702,7 @@
 
             // Populate Seller List (if visible)
             if (sellerListAdmin) {
+                console.log("Populating admin seller list.");
                 posData.sellers.forEach(seller => {
                     const sellerItem = document.createElement('div');
                     sellerItem.classList.add('admin-config-item');
@@ -1684,10 +1725,13 @@
             const name = document.getElementById('newCategoryName').value.trim();
             const color = document.getElementById('newCategoryColor').value.trim();
             const standName = document.getElementById('newCategoryStandName').value.trim(); // Get new field
+            console.log("Attempting to add category with ID:", id, "Name:", name, "Color:", color, "Stand Name:", standName);
+
 
             if (id && name && color && standName) { // Check for standName
                 if (posData.categories.some(cat => cat.id === id)) {
                     showMessageBox('Fehler', 'Kategorie ID existiert bereits!');
+                    console.warn("Category ID already exists:", id);
                     return;
                 }
                 const newCategory = { id, name, color, standName }; // Include standName
@@ -1699,6 +1743,7 @@
                 document.getElementById('newCategoryStandName').value = ''; // Clear new field
             } else {
                 showMessageBox('Fehler', 'Bitte alle Felder für die Kategorie ausfüllen.');
+                console.warn("Missing category fields.");
             }
         }
 
@@ -1709,10 +1754,13 @@
             const categoryId = document.getElementById('selectCategoryForProduct').value;
             const name = document.getElementById('newProductName').value.trim();
             const price = parseFloat(document.getElementById('newProductPrice').value);
+            console.log("Attempting to add product for category:", categoryId, "Name:", name, "Price:", price);
+
 
             if (categoryId && name && !isNaN(price) && price >= 0) {
                 if (posData.products[categoryId] && posData.products[categoryId].some(prod => prod.name === name)) {
                     showMessageBox('Fehler', 'Produktname existiert bereits in dieser Kategorie!');
+                    console.warn("Product name already exists in category:", categoryId, name);
                     return;
                 }
                 const newProduct = { categoryId, name, price };
@@ -1722,6 +1770,7 @@
                 document.getElementById('newProductPrice').value = '';
             } else {
                 showMessageBox('Fehler', 'Bitte alle Felder für das Produkt korrekt ausfüllen (Preis muss eine Zahl sein).');
+                console.warn("Missing or invalid product fields.");
             }
         }
 
@@ -1730,9 +1779,11 @@
          */
         async function addSeller() {
             const name = document.getElementById('newSellerName').value.trim();
+            console.log("Attempting to add seller with name:", name);
             if (name) {
                 if (posData.sellers.some(seller => seller.name === name)) {
                     showMessageBox('Fehler', 'Verkäufer mit diesem Namen existiert bereits!');
+                    console.warn("Seller with this name already exists:", name);
                     return;
                 }
                 const newSeller = { name };
@@ -1741,6 +1792,7 @@
                 document.getElementById('newSellerName').value = '';
             } else {
                 showMessageBox('Fehler', 'Bitte geben Sie einen Namen für den Verkäufer ein.');
+                console.warn("Missing seller name.");
             }
         }
 
@@ -1748,17 +1800,20 @@
         // Admin Login/Logout Logic
         adminLoginBtn.addEventListener('click', () => {
             adminLoginOverlay.classList.remove('hidden');
+            console.log("Admin Login button clicked. Showing login overlay.");
         });
 
         cancelLoginBtn.addEventListener('click', () => {
             adminLoginOverlay.classList.add('hidden');
             adminUsernameInput.value = 'admin';
             adminPasswordInput.value = 'admin123';
+            console.log("Admin Login cancelled. Hiding login overlay.");
         });
 
         loginBtn.addEventListener('click', () => {
             const username = adminUsernameInput.value;
             const password = adminPasswordInput.value;
+            console.log("Attempting admin login with username:", username);
 
             if (username === 'admin' && password === 'admin123') {
                 isAdminMode = true;
@@ -1768,8 +1823,10 @@
                 adminModeStatus.classList.remove('hidden');
                 showMessageBox('Login erfolgreich', 'Willkommen, Administrator!');
                 renderAdminConfig(); // Render the main admin menu
+                console.log("Admin login successful. Entering admin mode.");
             } else {
                 showMessageBox('Login fehlgeschritten', 'Falscher Benutzername oder Passwort.');
+                console.warn("Admin login failed.");
             }
         });
 
@@ -1782,6 +1839,7 @@
             renderCategories(); // Go back to normal POS view
             keypadArea.classList.remove('hidden');
             newOrderArea.classList.add('hidden');
+            console.log("Admin logout successful. Exiting admin mode.");
         });
 
         // Initial rendering of categories when the page loads
