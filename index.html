@@ -514,7 +514,7 @@
             <div class="flex items-center gap-2">
                 <span class="user-badge">Frau Becker</span>
                 <!-- New span to display userId for debugging -->
-                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...]</span>
+                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
                 <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
                 <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
                 <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
@@ -718,43 +718,43 @@
                     db = getFirestore(app);
                     auth = getAuth(app);
 
-                    console.log("Firebase initialized. Initial userId:", userId);
+                    console.log("Firebase initialized.");
 
                     // Listen for authentication state changes
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
                             // User is signed in.
-                            userId = user.uid;
-                            displayUserId.textContent = `[UserID: ${userId}]`; // Update UI with actual userId
-                            console.log("User authenticated. New userId:", userId);
+                            userId = user.uid; // Use the authenticated user's UID
+                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`; // Update UI with actual userId
+                            console.log("User authenticated. Current userId:", userId);
                             if (!firestoreListenersSetup) {
+                                console.log("Authentication successful, calling setupFirestoreListeners.");
                                 setupFirestoreListeners(); // Start listening to data changes once user is known
                                 firestoreListenersSetup = true;
                             }
                         } else {
-                            // No user is signed in, attempt to sign in (only if listeners haven't been tried to be set up)
-                            if (!firestoreListenersSetup) {
+                            // No user is signed in, attempt to sign in anonymously if not already trying
+                            if (!firestoreListenersSetup) { // Only try to sign in if listeners haven't been initiated yet
                                 try {
-                                    // Removed __initial_auth_token check as it's Canvas specific
-                                    console.log("Attempting signInAnonymously...");
+                                    console.log("No user signed in, attempting signInAnonymously...");
                                     await signInAnonymously(auth);
+                                    // The onAuthStateChanged will be triggered again with the signed-in anonymous user
                                 } catch (anonSignInError) {
                                     console.error("Anonymous sign-in failed:", anonSignInError);
-                                    userId = 'anonymous_fallback'; // Completely fail and go to non-persistent mode
-                                    displayUserId.textContent = `[UserID: ${userId} (Fehler)]`; // Indicate fallback
-                                    console.warn("Authentication failed, proceeding without persistent data storage for this session.");
-                                    renderCategories();
+                                    userId = 'anonymous_fallback'; // Fallback for no persistence
+                                    displayUserId.textContent = `[UserID: ${userId} (Fehler)] (Kat./Prod. Geteilt)`; // Indicate fallback
+                                    console.warn("Authentication failed, proceeding without persistent data storage for categories/products/sellers.");
+                                    renderCategories(); // Render categories even without data to show basic UI
                                     renderOrder();
                                     inputDisplay.textContent = currentInput;
-                                } finally {
-                                    firestoreListenersSetup = true; // Mark as setup to avoid repeated attempts
+                                    firestoreListenersSetup = true; // Mark as true so it doesn't keep trying to sign in
                                 }
                             }
                         }
                     });
                 } else {
                     console.warn("Firebase configuration not provided or incomplete. Data will not be persisted.");
-                    displayUserId.textContent = `[UserID: Nicht konfiguriert]`; // Indicate no config
+                    displayUserId.textContent = `[UserID: Nicht konfiguriert] (Kat./Prod. Geteilt)`; // Indicate no config
                     renderCategories();
                     renderOrder();
                     inputDisplay.textContent = currentInput;
@@ -762,7 +762,7 @@
             } catch (error) {
                 console.error("Fatal error during Firebase app initialization:", error);
                 showMessageBox('Fehler', 'Schwerwiegender Fehler beim Initialisieren von Firebase. Die App wird ohne Datenspeicherung gestartet.');
-                displayUserId.textContent = `[UserID: Fehler]`; // Indicate fatal error
+                displayUserId.textContent = `[UserID: Fehler] (Kat./Prod. Geteilt)`; // Indicate fatal error
                 renderCategories();
                 renderOrder();
                 inputDisplay.textContent = currentInput;
@@ -771,17 +771,20 @@
 
         // --- Firestore Data Listeners ---
         function setupFirestoreListeners() {
-            if (!db || !userId || userId === 'anonymous_fallback') { // Also check for fallback ID
-                console.warn("Firestore or User ID not available for listeners or in fallback mode. Listeners will not be set.");
+            // Re-check auth.currentUser here just to be absolutely sure
+            if (!db || !auth.currentUser || auth.currentUser.uid === 'anonymous_fallback') {
+                console.warn("Firestore, current user, or valid user ID not available at listener setup. Aborting listener setup.");
+                loadingMessage.classList.add('hidden');
                 return;
             }
+            const currentAuthedUserId = auth.currentUser.uid;
+            console.log("Proceeding with Firestore listeners. Auth User ID:", currentAuthedUserId);
 
-            console.log("Setting up Firestore listeners for userId:", userId);
             loadingMessage.classList.remove('hidden'); // Show loading message
             rightPanel.innerHTML = ''; // Clear right panel while loading
 
-            // Listener for Categories
-            const categoriesRef = collection(db, `artifacts/${appId}/users/${userId}/categories`);
+            // Listener for Categories (Public/Shared)
+            const categoriesRef = collection(db, `artifacts/${appId}/public/data/categories`);
             onSnapshot(categoriesRef, (snapshot) => {
                 const fetchedCategories = [];
                 snapshot.forEach(doc => {
@@ -808,8 +811,8 @@
                 loadingMessage.classList.add('hidden');
             });
 
-            // Listener for Products
-            const productsRef = collection(db, `artifacts/${appId}/users/${userId}/products`);
+            // Listener for Products (Public/Shared)
+            const productsRef = collection(db, `artifacts/${appId}/public/data/products`);
             onSnapshot(productsRef, (snapshot) => {
                 const fetchedProducts = {};
                 snapshot.forEach(doc => {
@@ -843,8 +846,8 @@
                 loadingMessage.classList.add('hidden');
             });
 
-            // Listener for Sellers
-            const sellersRef = collection(db, `artifacts/${appId}/users/${userId}/sellers`);
+            // Listener for Sellers (Private/User-specific)
+            const sellersRef = collection(db, `artifacts/${appId}/users/${currentAuthedUserId}/sellers`); // Use currentAuthedUserId here
             onSnapshot(sellersRef, (snapshot) => {
                 const fetchedSellers = [];
                 snapshot.forEach(doc => {
@@ -867,19 +870,19 @@
         // --- Firebase Data Operations (CRUD) ---
 
         /**
-         * Adds or updates a category in Firestore.
+         * Adds or updates a category in Firestore (Public/Shared).
          * @param {object} category - { id, name, color, standName }
          */
         async function saveCategoryToFirestore(category) {
-            if (!db || !userId || userId === 'anonymous_fallback') {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Daten können nicht gespeichert werden.');
+            if (!db || !auth.currentUser) {
+                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Kategoriedaten können nicht gespeichert werden.');
                 return;
             }
             try {
-                console.log("Attempting to save category:", category, "to Firestore for userId:", userId);
-                const categoryDocRef = doc(db, `artifacts/${appId}/users/${userId}/categories`, category.id);
+                console.log("Attempting to save category:", category, "to public Firestore path.");
+                const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, category.id);
                 await setDoc(categoryDocRef, { name: category.name, color: category.color, standName: category.standName || '' });
-                console.log("Category saved successfully to Firestore.");
+                console.log("Category saved successfully to public Firestore.");
             } catch (e) {
                 console.error("Error saving category: ", e);
                 showMessageBox('Fehler', `Fehler beim Speichern der Kategorie: ${e.message}`);
@@ -887,28 +890,28 @@
         }
 
         /**
-         * Deletes a category from Firestore.
+         * Deletes a category from Firestore (Public/Shared).
          * @param {string} categoryId - The ID of the category to delete.
          */
         async function deleteCategoryFromFirestore(categoryId) {
-            if (!db || !userId || userId === 'anonymous_fallback') {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Daten können nicht gelöscht werden.');
+            if (!db || !auth.currentUser) {
+                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Kategoriedaten können nicht gelöscht werden.');
                 return;
             }
             try {
-                const categoryDocRef = doc(db, `artifacts/${appId}/users/${userId}/categories`, categoryId);
+                const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, categoryId);
                 await deleteDoc(categoryDocRef);
-                console.log("Category deleted successfully:", categoryId);
+                console.log("Category deleted successfully from public Firestore:", categoryId);
 
-                // Also delete associated products
-                const productsToDeleteQuery = query(collection(db, `artifacts/${appId}/users/${userId}/products`), where("categoryId", "==", categoryId));
+                // Also delete associated products from the public path
+                const productsToDeleteQuery = query(collection(db, `artifacts/${appId}/public/data/products`), where("categoryId", "==", categoryId));
                 const productSnapshot = await getDocs(productsToDeleteQuery);
                 const deletePromises = [];
                 productSnapshot.forEach((productDoc) => {
                     deletePromises.push(deleteDoc(productDoc.ref));
                 });
                 await Promise.all(deletePromises);
-                console.log("Associated products deleted for category:", categoryId);
+                console.log("Associated products deleted from public Firestore for category:", categoryId);
 
             } catch (e) {
                 console.error("Error deleting category: ", e);
@@ -917,20 +920,20 @@
         }
 
         /**
-         * Adds or updates a product in Firestore.
+         * Adds or updates a product in Firestore (Public/Shared).
          * @param {object} product - { categoryId, name, price }
          */
         async function saveProductToFirestore(product) {
-            if (!db || !userId || userId === 'anonymous_fallback') {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Daten können nicht gespeichert werden.');
+            if (!db || !auth.currentUser) {
+                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Produktdaten können nicht gespeichert werden.');
                 return;
             }
             try {
-                console.log("Attempting to save product:", product, "to Firestore for userId:", userId);
+                console.log("Attempting to save product:", product, "to public Firestore path.");
                 // Auto-generate ID for new products
-                const productDocRef = doc(collection(db, `artifacts/${appId}/users/${userId}/products`));
+                const productDocRef = doc(collection(db, `artifacts/${appId}/public/data/products`));
                 await setDoc(productDocRef, product);
-                console.log("Product saved successfully to Firestore.");
+                console.log("Product saved successfully to public Firestore.");
             } catch (e) {
                 console.error("Error saving product: ", e);
                 showMessageBox('Fehler', `Fehler beim Speichern des Produkts: ${e.message}`);
@@ -938,18 +941,18 @@
         }
 
         /**
-         * Deletes a product from Firestore.
+         * Deletes a product from Firestore (Public/Shared).
          * @param {string} productId - The ID of the product document to delete.
          */
         async function deleteProductFromFirestore(productId) {
-            if (!db || !userId || userId === 'anonymous_fallback') {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Daten können nicht gelöscht werden.');
+            if (!db || !auth.currentUser) {
+                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Produktdaten können nicht gelöscht werden.');
                 return;
             }
             try {
-                const productDocRef = doc(db, `artifacts/${appId}/users/${userId}/products`, productId);
+                const productDocRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
                 await deleteDoc(productDocRef);
-                console.log("Product deleted successfully:", productId);
+                console.log("Product deleted successfully from public Firestore:", productId);
             } catch (e) {
                 console.error("Error deleting product: ", e);
                 showMessageBox('Fehler', `Fehler beim Löschen des Produkts: ${e.message}`);
@@ -957,19 +960,19 @@
         }
 
         /**
-         * Adds or updates a seller in Firestore.
+         * Adds or updates a seller in Firestore (Private/User-specific).
          * @param {object} seller - { id, name }
          */
         async function saveSellerToFirestore(seller) {
-            if (!db || !userId || userId === 'anonymous_fallback') {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Daten können nicht gespeichert werden.');
+            if (!db || !auth.currentUser) {
+                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Verkäuferdaten können nicht gespeichert werden.');
                 return;
             }
             try {
-                console.log("Attempting to save seller:", seller, "to Firestore for userId:", userId);
-                const sellerDocRef = doc(collection(db, `artifacts/${appId}/users/${userId}/sellers`));
+                console.log("Attempting to save seller:", seller, "to private Firestore path for userId:", auth.currentUser.uid);
+                const sellerDocRef = doc(collection(db, `artifacts/${appId}/users/${auth.currentUser.uid}/sellers`)); // Use auth.currentUser.uid here
                 await setDoc(sellerDocRef, { name: seller.name });
-                console.log("Seller saved successfully to Firestore.");
+                console.log("Seller saved successfully to private Firestore.");
             } catch (e) {
                 console.error("Error saving seller: ", e);
                 showMessageBox('Fehler', `Fehler beim Speichern des Verkäufers: ${e.message}`);
@@ -977,18 +980,18 @@
         }
 
         /**
-         * Deletes a seller from Firestore.
+         * Deletes a seller from Firestore (Private/User-specific).
          * @param {string} sellerId - The ID of the seller document to delete.
          */
         async function deleteSellerFromFirestore(sellerId) {
-            if (!db || !userId || userId === 'anonymous_fallback') {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Daten können nicht gelöscht werden.');
+            if (!db || !auth.currentUser) {
+                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Verkäuferdaten können nicht gelöscht werden.');
                 return;
             }
             try {
-                const sellerDocRef = doc(db, `artifacts/${appId}/users/${userId}/sellers`, sellerId);
+                const sellerDocRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}/sellers`, sellerId); // Use auth.currentUser.uid here
                 await deleteDoc(sellerDocRef);
-                console.log("Seller deleted successfully:", sellerId);
+                console.log("Seller deleted successfully from private Firestore:", sellerId);
             } catch (e) {
                 console.error("Error deleting seller: ", e);
                 showMessageBox('Fehler', `Fehler beim Löschen des Verkäufers: ${e.message}`);
