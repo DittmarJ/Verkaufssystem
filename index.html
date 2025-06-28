@@ -466,10 +466,11 @@
                 font-size: 12px;
                 line-height: 1.4;
                 color: #000;
-                page-break-after: always; /* Ensure each bon is on a new page */
+                box-sizing: border-box;
+                page-break-after: always; /* Force a page break after each bon */
             }
             .wertbon-print-area:last-child {
-                page-break-after: auto; /* No page break after the last one */
+                page-break-after: auto; /* No page break after the very last bon */
             }
             .wertbon-print-area h2, .wertbon-print-area h3 {
                 text-align: center;
@@ -635,9 +636,22 @@
         let auth;
         let userId = 'anonymous'; // Default to anonymous until authenticated
 
-        // Global variables for Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // Firebase Configuration - REPLACE with your actual Firebase project config
+        // The __app_id and __firebase_config variables are provided by the Canvas environment.
+        // For deploying to GitHub, you will need to replace them with your actual Firebase project details.
+        // Uncomment and use the lines below for GitHub deployment after replacing the placeholder values.
+        const firebaseConfig = {
+          apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
+          authDomain: "verkaufssoftware.firebaseapp.com",
+          projectId: "verkaufssoftware",
+          storageBucket: "verkaufssoftware.firebasestorage.app",
+          messagingSenderId: "268747007466",
+          appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
+          measurementId: "G-RMX5KJK543"
+        };
+        // For GitHub deployment, use your projectId as appId
+        const appId = firebaseConfig.projectId;
+
 
         // DOM Elements
         const orderList = document.getElementById('orderList');
@@ -694,7 +708,9 @@
         // --- Firebase Initialization and Auth ---
         async function initializeFirebase() {
             try {
-                if (Object.keys(firebaseConfig).length > 0) {
+                // Initialize Firebase only if firebaseConfig is provided
+                // This condition check ensures it doesn't try to initialize if firebaseConfig is empty
+                if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
                     app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
@@ -715,33 +731,24 @@
                             // No user is signed in, attempt to sign in (only if listeners haven't been tried to be set up)
                             if (!firestoreListenersSetup) {
                                 try {
-                                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token !== '') {
-                                        console.log("Attempting signInWithCustomToken...");
-                                        await signInWithCustomToken(auth, __initial_auth_token);
-                                    } else {
-                                        console.log("No custom token, attempting signInAnonymously...");
-                                        await signInAnonymously(auth);
-                                    }
-                                } catch (signInError) {
-                                    console.warn("Custom token sign-in failed. Attempting anonymous sign-in as fallback:", signInError);
-                                    try {
-                                        await signInAnonymously(auth); // Try anonymous sign-in if custom fails
-                                    } catch (anonSignInError) {
-                                        console.error("Anonymous sign-in also failed:", anonSignInError);
-                                        userId = 'anonymous_fallback'; // Completely fail and go to non-persistent mode
-                                        console.warn("Authentication failed, proceeding without persistent data storage for this session.");
-                                        renderCategories();
-                                        renderOrder();
-                                        inputDisplay.textContent = currentInput;
-                                    } finally {
-                                        firestoreListenersSetup = true; // Mark as setup to avoid repeated attempts
-                                    }
+                                    // Removed __initial_auth_token check as it's Canvas specific
+                                    console.log("Attempting signInAnonymously...");
+                                    await signInAnonymously(auth);
+                                } catch (anonSignInError) {
+                                    console.error("Anonymous sign-in failed:", anonSignInError);
+                                    userId = 'anonymous_fallback'; // Completely fail and go to non-persistent mode
+                                    console.warn("Authentication failed, proceeding without persistent data storage for this session.");
+                                    renderCategories();
+                                    renderOrder();
+                                    inputDisplay.textContent = currentInput;
+                                } finally {
+                                    firestoreListenersSetup = true; // Mark as setup to avoid repeated attempts
                                 }
                             }
                         }
                     });
                 } else {
-                    console.warn("Firebase configuration not provided. Data will not be persisted.");
+                    console.warn("Firebase configuration not provided or incomplete. Data will not be persisted.");
                     renderCategories();
                     renderOrder();
                     inputDisplay.textContent = currentInput;
