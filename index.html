@@ -475,17 +475,15 @@
 
         /* Wertbon Print Style */
         @media print {
-            body * {
-                visibility: hidden;
+            body > *:not(#print-area-temp) { /* Hide everything except the print area */
+                display: none !important;
             }
-            .wertbon-print-area, .wertbon-print-area * {
-                visibility: visible;
-            }
-            .wertbon-print-area {
-                position: relative; /* Changed to relative for stacking */
+            #print-area-temp {
+                display: block !important;
+                position: absolute;
                 left: 0;
                 top: 0;
-                width: 80mm; /* Common receipt printer width */
+                width: 80mm; /* Standard receipt width */
                 padding: 10mm;
                 font-family: 'monospace';
                 font-size: 12px;
@@ -494,40 +492,47 @@
                 box-sizing: border-box;
                 page-break-after: always; /* Force a page break after each bon */
             }
-            .wertbon-print-area:last-child {
+            #print-area-temp:last-child {
                 page-break-after: auto; /* No page break after the very last bon */
             }
-            .wertbon-print-area h2, .wertbon-print-area h3 {
+            #print-area-temp .wertbon-print-area {
+                width: 100%; /* Ensure inner bons take full width of print area */
+                page-break-inside: avoid; /* Avoid breaking individual bons across pages */
+            }
+
+            /* Specific styles for elements within wertbon-print-area when printing */
+            .wertbon-print-area h2,
+            .wertbon-print-area h3 {
                 text-align: center;
                 margin-bottom: 5px;
             }
-            .wertbon-print-area table {
-                width: 100%;
-                border-collapse: collapse;
+            .wertbon-print-area img {
+                display: block; /* Ensure image is a block element for centering */
+                margin: 0 auto; /* Center image */
+            }
+            .wertbon-print-area p {
+                margin: 5px 0; /* Adjust paragraph margins */
+            }
+            .wertbon-print-area .dashed-line {
+                border-top: 1px dashed #000;
+                margin: 15px 0;
+            }
+            .wertbon-print-area .item-line {
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+            .wertbon-print-area .italic-note {
+                font-style: italic;
+                font-size: 0.9em; /* Smaller for "Bspw." */
+            }
+            .wertbon-print-area .small-note {
+                font-size: 0.9em;
                 margin-top: 10px;
             }
-            .wertbon-print-area th, .wertbon-print-area td {
-                padding: 2px 0;
-                border-bottom: 1px dashed #ccc;
-                text-align: left;
-            }
-            .wertbon-print-area td:nth-child(2) {
-                text-align: right;
-            }
-            .wertbon-print-area .total-line {
-                font-weight: bold;
-                border-top: 2px solid #000;
-            }
-            .wertbon-print-area .summary-line {
-                display: flex;
-                justify-content: space-between;
-                padding: 2px 0;
-            }
             .wertbon-print-area .thank-you {
-                text-align: center;
-                margin-top: 15px;
-                font-size: 14px;
+                font-size: 1.1em;
                 font-weight: bold;
+                margin-top: 10px;
             }
         }
     </style>
@@ -1388,16 +1393,15 @@
 
         /**
          * Generates and prints a Wertbon (receipt) for each item individually if quantity > 1.
-         * All generated bons are combined into a single print job.
+         * All generated bons are combined into a single print job, printed without a new tab.
          * @param {Array} order - The current order items.
          */
         function printWertbon(order) {
             const now = new Date();
-            const dateString = now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); // "28.07.2025" or similar
+            const dateString = now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const currentYear = now.getFullYear();
             let allWertbonsHtml = '';
 
-            // Function to find category stand name by product name
             const getProductCategoryStandName = (productName) => {
                 for (const categoryId in posData.products) {
                     const product = posData.products[categoryId].find(p => p.name === productName);
@@ -1410,112 +1414,52 @@
             };
 
             order.forEach(item => {
-                for (let i = 0; i < item.quantity; i++) { // Generate HTML for each individual item
-                    const currentItemPrice = item.price; // Price per single item
+                for (let i = 0; i < item.quantity; i++) {
+                    const currentItemPrice = item.price;
                     const standName = getProductCategoryStandName(item.name);
 
                     const singleWertbonContent = `
                         <div class="wertbon-print-area">
                             <div style="text-align: center; margin-bottom: 10px;">
-                                <!-- LMG Logo from GitHub -->
                                 <img src="https://raw.githubusercontent.com/DittmarJ/Verkaufssystem/main/LMG_Logo.png" alt="LMG Logo" style="width: 100px; height: 50px;">
-                                <!-- Removed Lise-Meitner-Gymnasium text here -->
+                                <p style="font-size: 0.9em; margin-top: 5px;">Lise-Meitner-Gymnasium</p>
                             </div>
                             <h2 style="font-size: 1.5em; font-weight: bold; text-align: center; margin-bottom: 10px;">Schulfest ${currentYear}</h2>
-                            <p style="text-align: center;">Lise-Meitner-Gymnasium<br>Kantstraße 1<br>79639 Grenzach-Wyhlen</p>
-                            <div style="border-top: 1px dashed #000; margin: 15px 0;"></div>
+                            <p style="text-align: center; margin-bottom: 5px;">Lise-Meitner-Gymnasium<br>Kantstraße 1<br>79639 Grenzach-Wyhlen</p>
+                            <div class="dashed-line" style="border-top: 1px dashed #000; margin: 15px 0;"></div>
 
                             <p style="text-align: center; font-style: italic; margin-bottom: 5px;">Bspw.</p>
                             <p style="text-align: center; font-size: 1.2em; font-weight: bold;">
                                 ${item.name} €${currentItemPrice.toFixed(2)}
-                                <span style="font-size: 0.8em; font-weight: normal; display: block;">(eingegebenes)</span>
                             </p>
-                            <div style="border-top: 1px dashed #000; margin: 15px 0;"></div>
+                            <div class="dashed-line" style="border-top: 1px dashed #000; margin: 15px 0;"></div>
 
                             <p style="text-align: center; margin-bottom: 5px;">Einlösbar beim:</p>
                             <p style="text-align: center; font-size: 1.2em; font-weight: bold;">${standName}</p>
-                            <div style="border-top: 1px dashed #000; margin: 15px 0;"></div>
+                            <div class="dashed-line" style="border-top: 1px dashed #000; margin: 15px 0;"></div>
 
                             <p style="text-align: center; font-size: 0.9em; margin-top: 10px;">Der Wertbon ist nur am Schulfest ${dateString} gültig.</p>
                             <p style="text-align: center; font-size: 1.1em; font-weight: bold; margin-top: 10px;">Vielen Dank für Ihre Unterstützung!</p>
                         </div>
                     `;
-                    allWertbonsHtml += singleWertbonContent; // Accumulate HTML for all bons
+                    allWertbonsHtml += singleWertbonContent;
                 }
             });
 
-            // Open one print window and write all accumulated HTML to it
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write('<html><head><title>Wertbon</title>');
-                printWindow.document.write('<style>');
-                // Include print styles directly
-                printWindow.document.write(`
-                    @media print {
-                        body { margin: 0; }
-                        /* Ensure each .wertbon-print-area takes a new page */
-                        .wertbon-print-area {
-                            position: relative;
-                            left: 0;
-                            top: 0;
-                            width: 80mm;
-                            padding: 10mm;
-                            font-family: monospace;
-                            font-size: 12px;
-                            line-height: 1.4;
-                            color: #000;
-                            box-sizing: border-box;
-                            page-break-after: always; /* Force a page break after each bon */
-                        }
-                        .wertbon-print-area:last-child {
-                            page-break-after: auto; /* No page break after the very last bon */
-                        }
-                        .wertbon-print-area h2, .wertbon-print-area h3 {
-                            text-align: center;
-                            margin-bottom: 5px;
-                        }
-                        .wertbon-print-area table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-top: 10px;
-                        }
-                        .wertbon-print-area th, .wertbon-print-area td {
-                            padding: 2px 0;
-                            border-bottom: 1px dashed #ccc;
-                            text-align: left;
-                        }
-                        .wertbon-print-area td:nth-child(2) {
-                            text-align: right;
-                        }
-                        .wertbon-print-area .total-line {
-                            font-weight: bold;
-                            border-top: 2px solid #000;
-                        }
-                        .wertbon-print-area .summary-line {
-                            display: flex;
-                            justify-content: space-between;
-                            padding: 2px 0;
-                        }
-                        .wertbon-print-area .thank-you {
-                            text-align: center;
-                            margin-top: 15px;
-                            font-size: 14px;
-                            font-weight: bold;
-                        }
-                    }
-                `);
-                printWindow.document.write('</style></head><body>');
-                printWindow.document.write(allWertbonsHtml); // Write all generated bons
-                printWindow.document.close();
-                printWindow.focus();
-                // A small delay to ensure content is rendered before printing
-                setTimeout(() => {
-                    printWindow.print();
-                    printWindow.close();
-                }, 250);
-            } else {
-                showMessageBox('Fehler', 'Pop-up-Blocker verhindert den Druck des Wertbons. Bitte Pop-ups für diese Seite zulassen.');
-            }
+            const printArea = document.createElement('div');
+            printArea.id = 'print-area-temp';
+            printArea.innerHTML = allWertbonsHtml;
+            document.body.appendChild(printArea);
+
+            // Trigger print on the entire document, letting @media print CSS handle visibility
+            window.print();
+
+            // Clean up the temporary print area and styles after a short delay
+            setTimeout(() => {
+                if (document.body.contains(printArea)) {
+                    document.body.removeChild(printArea);
+                }
+            }, 500); // Small delay to allow print dialog to appear/be dismissed
         }
 
 
