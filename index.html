@@ -295,7 +295,7 @@
         }
 
         /* Message Box Styling */
-        .message-box-overlay, .admin-login-overlay {
+        .message-box-overlay, .admin-login-overlay, .live-display-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -307,7 +307,7 @@
             align-items: center;
             z-index: 1000;
         }
-        .message-box, .admin-login-box {
+        .message-box, .admin-login-box, .live-display-box {
             background-color: #333;
             color: white;
             padding: 2rem;
@@ -318,16 +318,16 @@
             width: 90%;
             border: 2px solid #555;
         }
-        .message-box h3, .admin-login-box h3 {
+        .message-box h3, .admin-login-box h3, .live-display-box h3 {
             font-size: 1.8rem;
             margin-bottom: 1rem;
             color: #ffcc00;
         }
-        .message-box p, .admin-login-box p {
+        .message-box p, .admin-login-box p, .live-display-box p {
             font-size: 1.1rem;
             margin-bottom: 2rem;
         }
-        .message-box button, .admin-login-box button {
+        .message-box button, .admin-login-box button, .live-display-box button {
             background-color: #007bff;
             color: white;
             padding: 0.75rem 1.5rem;
@@ -335,7 +335,7 @@
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
-        .message-box button:hover, .admin-login-box button:hover {
+        .message-box button:hover, .admin-login-box button:hover, .live-display-box button:hover {
             background-color: #0056b3;
         }
         .admin-login-box input {
@@ -351,6 +351,18 @@
         .admin-login-box button {
             margin: 0 10px;
         }
+        .live-display-box input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
+
 
         /* Admin Configuration Panel Specific Styles */
         .admin-config-panel {
@@ -515,6 +527,7 @@
                 <span class="user-badge">Frau Becker</span>
                 <!-- New span to display userId for debugging -->
                 <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
+                <button id="liveDisplayLinkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-full text-sm ml-4">Live Display Link</button>
                 <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
                 <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
                 <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
@@ -626,6 +639,17 @@
         </div>
     </div>
 
+    <!-- Live Display Link Modal -->
+    <div id="liveDisplayOverlay" class="live-display-overlay hidden">
+        <div class="live-display-box">
+            <h3>Live Display Link</h3>
+            <p>Öffne diesen Link auf dem zweiten iPad:</p>
+            <input type="text" id="liveDisplayUrl" readonly>
+            <button id="copyLiveDisplayUrlBtn">Link kopieren</button>
+            <button id="closeLiveDisplayBtn">Schließen</button>
+        </div>
+    </div>
+
     <script type="module">
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -639,9 +663,6 @@
         let userId = 'anonymous'; // Default to anonymous until authenticated
 
         // Firebase Configuration - REPLACE with your actual Firebase project config
-        // The __app_id and __firebase_config variables are provided by the Canvas environment.
-        // For deploying to GitHub, you will need to replace them with your actual Firebase project details.
-        // Uncomment and use the lines below for GitHub deployment after replacing the placeholder values.
         const firebaseConfig = {
           apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
           authDomain: "verkaufssoftware.firebaseapp.com",
@@ -683,11 +704,19 @@
         const rightPanel = document.getElementById('rightPanel');
         const inputDisplay = document.getElementById('inputDisplay'); // Input display element
         const clearInputButton = document.getElementById('clearInputButton'); // New C button
-        const loadingMessage = document.getElementById('loadingMessage'); // Loading message
 
         const keypadArea = document.getElementById('keypadArea'); // Numeric keypad and function buttons area
         const newOrderArea = document.getElementById('newOrderArea'); // "Neue Bestellung" button area
         const newOrderButton = document.getElementById('newOrderButton'); // The "Neue Bestellung" button
+
+        // Live Display Elements
+        const liveDisplayLinkBtn = document.getElementById('liveDisplayLinkBtn');
+        const liveDisplayOverlay = document.getElementById('liveDisplayOverlay');
+        const liveDisplayUrlInput = document.getElementById('liveDisplayUrl');
+        const copyLiveDisplayUrlBtn = document.getElementById('copyLiveDisplayUrlBtn');
+        const closeLiveDisplayBtn = document.getElementById('closeLiveDisplayBtn');
+        const loadingMessage = document.getElementById('loadingMessage'); // Loading message
+
 
         // State variables
         let currentOrder = [];
@@ -711,8 +740,6 @@
         // --- Firebase Initialization and Auth ---
         async function initializeFirebase() {
             try {
-                // Initialize Firebase only if firebaseConfig is provided
-                // This condition check ensures it doesn't try to initialize if firebaseConfig is empty
                 if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
                     app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
@@ -720,41 +747,37 @@
 
                     console.log("Firebase initialized.");
 
-                    // Listen for authentication state changes
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
-                            // User is signed in.
-                            userId = user.uid; // Use the authenticated user's UID
-                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`; // Update UI with actual userId
+                            userId = user.uid;
+                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
                             console.log("User authenticated. Current userId:", userId);
                             if (!firestoreListenersSetup) {
                                 console.log("Authentication successful, calling setupFirestoreListeners.");
-                                setupFirestoreListeners(); // Start listening to data changes once user is known
+                                setupFirestoreListeners();
                                 firestoreListenersSetup = true;
                             }
                         } else {
-                            // No user is signed in, attempt to sign in anonymously if not already trying
-                            if (!firestoreListenersSetup) { // Only try to sign in if listeners haven't been initiated yet
+                            if (!firestoreListenersSetup) {
                                 try {
                                     console.log("No user signed in, attempting signInAnonymously...");
                                     await signInAnonymously(auth);
-                                    // The onAuthStateChanged will be triggered again with the signed-in anonymous user
                                 } catch (anonSignInError) {
                                     console.error("Anonymous sign-in failed:", anonSignInError);
-                                    userId = 'anonymous_fallback'; // Fallback for no persistence
-                                    displayUserId.textContent = `[UserID: ${userId} (Fehler)] (Kat./Prod. Geteilt)`; // Indicate fallback
+                                    userId = 'anonymous_fallback';
+                                    displayUserId.textContent = `[UserID: ${userId} (Fehler)] (Kat./Prod. Geteilt)`;
                                     console.warn("Authentication failed, proceeding without persistent data storage for categories/products/sellers.");
-                                    renderCategories(); // Render categories even without data to show basic UI
+                                    renderCategories();
                                     renderOrder();
                                     inputDisplay.textContent = currentInput;
-                                    firestoreListenersSetup = true; // Mark as true so it doesn't keep trying to sign in
+                                    firestoreListenersSetup = true;
                                 }
                             }
                         }
                     });
                 } else {
                     console.warn("Firebase configuration not provided or incomplete. Data will not be persisted.");
-                    displayUserId.textContent = `[UserID: Nicht konfiguriert] (Kat./Prod. Geteilt)`; // Indicate no config
+                    displayUserId.textContent = `[UserID: Nicht konfiguriert] (Kat./Prod. Geteilt)`;
                     renderCategories();
                     renderOrder();
                     inputDisplay.textContent = currentInput;
@@ -762,7 +785,7 @@
             } catch (error) {
                 console.error("Fatal error during Firebase app initialization:", error);
                 showMessageBox('Fehler', 'Schwerwiegender Fehler beim Initialisieren von Firebase. Die App wird ohne Datenspeicherung gestartet.');
-                displayUserId.textContent = `[UserID: Fehler] (Kat./Prod. Geteilt)`; // Indicate fatal error
+                displayUserId.textContent = `[UserID: Fehler] (Kat./Prod. Geteilt)`;
                 renderCategories();
                 renderOrder();
                 inputDisplay.textContent = currentInput;
@@ -771,7 +794,6 @@
 
         // --- Firestore Data Listeners ---
         function setupFirestoreListeners() {
-            // Re-check auth.currentUser here just to be absolutely sure
             if (!db || !auth.currentUser || auth.currentUser.uid === 'anonymous_fallback') {
                 console.warn("Firestore, current user, or valid user ID not available at listener setup. Aborting listener setup.");
                 loadingMessage.classList.add('hidden');
@@ -780,8 +802,8 @@
             const currentAuthedUserId = auth.currentUser.uid;
             console.log("Proceeding with Firestore listeners. Auth User ID:", currentAuthedUserId);
 
-            loadingMessage.classList.remove('hidden'); // Show loading message
-            rightPanel.innerHTML = ''; // Clear right panel while loading
+            loadingMessage.classList.remove('hidden');
+            rightPanel.innerHTML = '';
 
             // Listener for Categories (Public/Shared)
             const categoriesRef = collection(db, `artifacts/${appId}/public/data/categories`);
@@ -798,10 +820,10 @@
                 } else {
                     if (currentAdminView === 'categories') {
                         console.log("Calling renderAdminCategoryManagement due to category snapshot update.");
-                        renderAdminCategoryManagement(); // Re-render if in category admin view
+                        renderAdminCategoryManagement();
                     } else if (currentAdminView === 'products') {
                         console.log("Calling renderAdminProductManagement due to category snapshot update (for dropdown).");
-                        renderAdminProductManagement(); // Re-render to update category dropdown
+                        renderAdminProductManagement();
                     }
                 }
                 loadingMessage.classList.add('hidden');
@@ -836,7 +858,7 @@
                 } else {
                     if (currentAdminView === 'products') {
                         console.log("Calling renderAdminProductManagement due to product snapshot update.");
-                        renderAdminProductManagement(); // Re-render if in product admin view
+                        renderAdminProductManagement();
                     }
                 }
                 loadingMessage.classList.add('hidden');
@@ -847,7 +869,7 @@
             });
 
             // Listener for Sellers (Private/User-specific)
-            const sellersRef = collection(db, `artifacts/${appId}/users/${currentAuthedUserId}/sellers`); // Use currentAuthedUserId here
+            const sellersRef = collection(db, `artifacts/${appId}/users/${currentAuthedUserId}/sellers`);
             onSnapshot(sellersRef, (snapshot) => {
                 const fetchedSellers = [];
                 snapshot.forEach(doc => {
@@ -857,7 +879,7 @@
                 console.log("onSnapshot for sellers triggered. Fetched sellers:", fetchedSellers);
                 if (isAdminMode && currentAdminView === 'sellers') {
                     console.log("Calling renderAdminSellerManagement due to seller snapshot update.");
-                    renderAdminSellerManagement(); // Re-render if in seller admin view
+                    renderAdminSellerManagement();
                 }
                 loadingMessage.classList.add('hidden');
             }, (error) => {
@@ -868,6 +890,37 @@
         }
 
         // --- Firebase Data Operations (CRUD) ---
+
+        /**
+         * Saves the current order for live display on a second screen.
+         * This data is public.
+         */
+        async function saveLiveOrderToFirestore() {
+            if (!db || !auth.currentUser) {
+                console.warn("Firestore or user not authenticated. Live order cannot be saved.");
+                return;
+            }
+            try {
+                // Combine relevant order data for display
+                const orderToSave = {
+                    items: currentOrder.map(item => ({
+                        name: item.name,
+                        quantity: item.quantity,
+                        price: item.price
+                    })),
+                    subtotal: parseFloat(subtotalAmount.textContent.replace('€', '')),
+                    total: parseFloat(totalAmount.textContent.replace('€', '')),
+                    timestamp: Date.now() // Add a timestamp for freshness
+                };
+                // Save to a fixed public document
+                const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, 'liveOrderDisplay');
+                await setDoc(liveOrderDocRef, orderToSave);
+                console.log("Live order saved to Firestore:", orderToSave);
+            } catch (e) {
+                console.error("Error saving live order:", e);
+            }
+        }
+
 
         /**
          * Adds or updates a category in Firestore (Public/Shared).
@@ -1021,8 +1074,8 @@
             const now = new Date();
             const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric' };
             const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            currentTimeElem.textContent = now.toLocaleDateString('de-DE', timeOptions) + ' Uhr';
             currentDateElem.textContent = now.toLocaleDateString('de-DE', dateOptions);
-            currentTimeElem.textContent = now.toLocaleTimeString('de-DE', timeOptions);
         }
 
         // Initialize date and time and update every second
@@ -1050,6 +1103,7 @@
             currentInput = '0.00'; // Reset input display to 0.00 after adding item
             inputDisplay.textContent = currentInput;
             renderOrder();
+            saveLiveOrderToFirestore(); // Save live order after update
         }
 
         /**
@@ -1089,6 +1143,7 @@
             if (index >= 0 && index < currentOrder.length) {
                 currentOrder.splice(index, 1);
                 renderOrder();
+                saveLiveOrderToFirestore(); // Save live order after update
             } else {
                 console.error('Ungültiger Artikelindex zum Entfernen.');
             }
@@ -1314,7 +1369,6 @@
                 `);
                 printWindow.document.write('</style></head><body>');
                 printWindow.document.write(allWertbonsHtml); // Write all generated bons
-                printWindow.document.write('</body></html>');
                 printWindow.document.close();
                 printWindow.focus();
                 // A small delay to ensure content is rendered before printing
@@ -1352,6 +1406,7 @@
 
             newOrderArea.classList.add('hidden');
             keypadArea.classList.remove('hidden');
+            saveLiveOrderToFirestore(); // Reset live order on new order
         });
 
 
@@ -1857,6 +1912,36 @@
             keypadArea.classList.remove('hidden');
             newOrderArea.classList.add('hidden');
             console.log("Admin logout successful. Exiting admin mode.");
+        });
+
+        // Live Display Link Logic
+        liveDisplayLinkBtn.addEventListener('click', () => {
+            let displayUrl;
+            if (window.location.protocol === 'file:') {
+                // For local file system testing, assume display.html is in the same directory
+                const currentPath = window.location.href;
+                const lastSlashIndex = currentPath.lastIndexOf('/');
+                const basePath = currentPath.substring(0, lastSlashIndex + 1);
+                displayUrl = `${basePath}display.html?appId=${appId}`;
+            } else {
+                // For web servers (like GitHub Pages)
+                const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
+                displayUrl = `${baseUrl}display.html?appId=${appId}`;
+            }
+            liveDisplayUrlInput.value = displayUrl;
+            liveDisplayOverlay.classList.remove('hidden');
+            console.log("Live Display Link generated:", displayUrl);
+        });
+
+        copyLiveDisplayUrlBtn.addEventListener('click', () => {
+            liveDisplayUrlInput.select();
+            document.execCommand('copy');
+            showMessageBox('Kopiert!', 'Der Link wurde in die Zwischenablage kopiert.');
+            liveDisplayOverlay.classList.add('hidden'); // Close after copying
+        });
+
+        closeLiveDisplayBtn.addEventListener('click', () => {
+            liveDisplayOverlay.classList.add('hidden');
         });
 
         // Initial rendering of categories when the page loads
