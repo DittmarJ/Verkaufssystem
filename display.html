@@ -121,7 +121,7 @@
 </head>
 <body>
     <div class="display-container">
-        <h1>Aktuelle Bestellung</h1>
+        <h1 id="displayTitle">Aktuelle Bestellung</h1>
         <ul id="liveOrderList" class="order-display-list">
             <!-- Live order items will be dynamically added here -->
         </ul>
@@ -148,9 +148,10 @@
         let auth;
         let userId = 'anonymous'; // Initial value
 
-        // Retrieve appId from URL parameters
+        // Retrieve appId and kasseId from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const appId = urlParams.get('appId') || 'verkaufssoftware'; // Use your projectId as default fallback
+        const kasseId = urlParams.get('kasseId') || 'defaultKasse'; // New: Get kasseId from URL, default to 'defaultKasse'
 
         // Firebase Configuration (MUST MATCH YOUR index.html CONFIG)
         const firebaseConfig = {
@@ -166,6 +167,7 @@
         const liveOrderList = document.getElementById('liveOrderList');
         const liveOrderTotal = document.getElementById('liveOrderTotal');
         const displayAppUserId = document.getElementById('displayAppUserId');
+        const displayTitle = document.getElementById('displayTitle'); // New: Title element
 
         const messageBoxOverlay = document.getElementById('messageBoxOverlay');
         const messageBoxTitle = document.getElementById('messageBoxTitle');
@@ -183,6 +185,9 @@
         });
 
         async function initializeFirebaseAndListeners() {
+            // Update title to show active Kasse
+            displayTitle.textContent = `Aktuelle Bestellung - ${kasseId.replace('Kasse', 'Kasse ')}`;
+
             try {
                 if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
                     app = initializeApp(firebaseConfig);
@@ -219,21 +224,22 @@
         }
 
         function setupLiveOrderListener() {
-            if (!db || !auth.currentUser) {
-                console.warn("Firestore or authenticated user not available for Live Order Listener.");
+            if (!db || !auth.currentUser || !kasseId) {
+                console.warn("Firestore, authenticated user, or Kasse ID not available for Live Order Listener.");
                 return;
             }
-            console.log(`Setting up Live Order Listener for appId: ${appId}`);
+            console.log(`Setting up Live Order Listener for appId: ${appId} and Kasse ID: ${kasseId}`);
 
-            const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, 'liveOrderDisplay');
+            // Listen to the specific Kasse's live order document
+            const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, kasseId);
 
             onSnapshot(liveOrderDocRef, (docSnapshot) => {
                 if (docSnapshot.exists()) {
                     const liveOrderData = docSnapshot.data();
-                    console.log("Live order data received:", liveOrderData);
+                    console.log("Live order data received for", kasseId, ":", liveOrderData);
                     renderLiveOrder(liveOrderData);
                 } else {
-                    console.log("No live order data available (document does not exist).");
+                    console.log(`No live order data available for ${kasseId} (document does not exist).`);
                     renderLiveOrder({ items: [], total: 0 }); // Clear display if no data
                 }
             }, (error) => {
