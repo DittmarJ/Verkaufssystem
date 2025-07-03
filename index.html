@@ -675,7 +675,8 @@
         let db;
         let auth;
         let userId = 'anonymous'; // Default to anonymous until authenticated
-        let selectedKasseId = null; // Stores the selected Kasse ID
+        let selectedKasseId = localStorage.getItem('selectedKasseId'); // Retrieve Kasse ID from local storage
+        let selectedKasseName = localStorage.getItem('selectedKasseName'); // Retrieve Kasse Name from local storage
 
         // Firebase Configuration - REPLACE with your actual Firebase project config
         const firebaseConfig = {
@@ -688,8 +689,7 @@
           measurementId: "G-RMX5KJK543"
         };
         // For GitHub deployment, use your projectId as appId
-        const appId = firebaseConfig.projectId;
-
+        const projectId = firebaseConfig.projectId; // Use projectId for the appId
 
         // DOM Elements
         const orderList = document.getElementById('orderList');
@@ -701,7 +701,7 @@
         const currentDateElem = document.getElementById('currentDate');
         const currentTimeElem = document.getElementById('currentTime');
         const displayUserId = document.getElementById('displayUserId');    
-        const cashierBadge = document.getElementById('cashierBadge'); // New: Kasse display
+        const cashierBadge = document.getElementById('cashierBadge'); // Kasse display
 
         const messageBoxOverlay = document.getElementById('messageBoxOverlay');
         const messageBoxTitle = document.getElementById('messageBoxTitle');
@@ -717,7 +717,7 @@
         const loginBtn = document.getElementById('loginBtn');
         const cancelLoginBtn = document.getElementById('cancelLoginBtn');    
 
-        const kasseSelectOverlay = document.getElementById('kasseSelectOverlay'); // New: Kasse select modal
+        const kasseSelectOverlay = document.getElementById('kasseSelectOverlay'); // Kasse select modal
         const kasseButtons = kasseSelectOverlay.querySelector('.kasse-buttons'); // Container for Kasse buttons
 
         const rightPanel = document.getElementById('rightPanel');
@@ -759,24 +759,882 @@
         // --- Firebase Initialization and Auth ---
         async function initializeFirebase() {
             try {
-                if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
-                    app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
+                // Check if firebaseConfig is valid
+                if (!firebaseConfig || Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
+                    console.error("Firebase Configuration is missing or invalid. Please check firebaseConfig object.");
+                    showMessage('Fehler', 'Firebase Konfiguration fehlt oder ist ungültig. Bitte den Code überprüfen.');
+                    return; // Stop execution if config is bad
+                }
 
-                    console.log("Firebase initialized.");
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-                    onAuthStateChanged(auth, async (user) => {
-                        if (user) {
-                            userId = user.uid;
-                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
-                            console.log("User authenticated. Current userId:", userId);
-                            // Only show Kasse selection if not already selected
-                            if (!selectedKasseId) {
-                                kasseSelectOverlay.classList.remove('hidden');
-                            } else {
-                                // If Kasse was already selected (e.g., page refresh), set up listeners directly
-                                if (!firestoreListenersSetup) {
-                                    console.log("Authentication successful, Kasse already selected, calling setupFirestoreListeners.");
-                                    setupFirestoreListeners();
-                                }
+                console.log("Firebase initialized.");
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
+                        console.log("User authenticated. Current userId:", userId);
+                        
+                        // Check if a Kasse was previously selected
+                        if (selectedKasseId && selectedKasseName) {
+                            cashierBadge.textContent = `Kasse: ${selectedKasseName}`;
+                            kasseSelectOverlay.classList.add('hidden'); // Hide selection if already chosen
+                            if (!firestoreListenersSetup) {
+                                console.log("Authentication successful, Kasse already selected, calling setupFirestoreListeners.");
+                                setupFirestoreListeners();
+                            }
+                        } else {
+                            // If no Kasse selected, show the selection modal
+                            kasseSelectOverlay.classList.remove('hidden');
+                        }
+                    } else {
+                        // User is signed out, try to sign in anonymously
+                        console.log("No user found, attempting anonymous sign-in.");
+                        try {
+                            await signInAnonymously(auth);
+                            console.log("Signed in anonymously.");
+                        } catch (error) {
+                            console.error("Error signing in anonymously:", error);
+                            showMessage('Fehler', 'Anonyme Anmeldung fehlgeschlagen: ' + error.message);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Failed to initialize Firebase:", error);
+                showMessage('Initialisierungsfehler', 'Firebase konnte nicht initialisiert werden: ' + error.message);
+            }
+        }
+
+        // Call initialization as soon as the DOM is ready
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
+
+
+        // --- UI Update Functions ---
+        function updateDateTime() {
+            const now = new Date();
+            const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
+            currentDateElem.textContent = now.toLocaleDateString('de-DE', dateOptions).replace('.', ''); // Remove dot after month
+            currentTimeElem.textContent = now.toLocaleTimeString('de-DE', timeOptions);
+        }
+
+        setInterval(updateDateTime, 1000); // Update time every second
+        updateDateTime(); // Initial call
+
+        function updateOrderDisplay() {
+            orderList.innerHTML = '';
+            let currentSubtotal = 0;
+
+            if (currentOrder.length === 0) {
+                orderList.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Artikel im Warenkorb</div>';
+                subtotalAmount.textContent = '€0.00';
+                totalAmount.textContent = '€0.00';
+                cashAmount.textContent = '€0.00';
+                changeAmount.textContent = '€0.00';
+                changeHeader.textContent = '€0.00';
+                return;
+            }
+
+            currentOrder.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.classList.add('order-item', 'hover:bg-gray-700', 'rounded');
+                itemElement.innerHTML = `
+                    <span class="qty">${item.qty}x</span>
+                    <span class="name">${item.name}</span>
+                    <span class="price">€${item.total.toFixed(2)}</span>
+                `;
+                itemElement.dataset.index = index; // Store index for easy removal
+                orderList.appendChild(itemElement);
+                currentSubtotal += item.total;
+            });
+
+            subtotalAmount.textContent = `€${currentSubtotal.toFixed(2)}`;
+            totalAmount.textContent = `€${currentSubtotal.toFixed(2)}`; // Initially total is subtotal
+            updateCashAndChange(); // Update cash and change displays
+        }
+
+        function updateCashAndChange() {
+            const total = parseFloat(totalAmount.textContent.replace('€', ''));
+            const change = cashGiven - total;
+            
+            cashAmount.textContent = `€${cashGiven.toFixed(2)}`;
+            changeAmount.textContent = `€${Math.max(0, change).toFixed(2)}`;
+            changeHeader.textContent = `€${Math.max(0, change).toFixed(2)}`; // Update header change display
+        }
+
+        function updateInputDisplay(value) {
+            inputDisplay.textContent = value;
+        }
+
+        function showMessage(title, message) {
+            messageBoxTitle.textContent = title;
+            messageBoxContent.textContent = message;
+            messageBoxOverlay.classList.remove('hidden');
+        }
+
+        // --- Event Listeners for POS System ---
+
+        // Kasse Selection
+        kasseButtons.addEventListener('click', (event) => {
+            const button = event.target.closest('button');
+            if (button) {
+                selectedKasseId = button.dataset.kasseId;
+                selectedKasseName = button.textContent;
+                localStorage.setItem('selectedKasseId', selectedKasseId); // Save to local storage
+                localStorage.setItem('selectedKasseName', selectedKasseName); // Save name too
+                cashierBadge.textContent = `Kasse: ${selectedKasseName}`;
+                kasseSelectOverlay.classList.add('hidden'); // Hide the modal
+                console.log(`Kasse selected: ${selectedKasseId}`);
+                if (!firestoreListenersSetup) {
+                    setupFirestoreListeners(); // Setup listeners after Kasse is selected
+                }
+            }
+        });
+
+        messageBoxClose.addEventListener('click', () => {
+            messageBoxOverlay.classList.add('hidden');
+        });
+
+        // Numeric Keypad and Action Buttons
+        document.querySelectorAll('.num-button, .action-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const inputVal = button.dataset.input;
+                const action = button.dataset.action;
+                const func = button.dataset.function;
+
+                if (inputVal) {
+                    handleNumericInput(inputVal);
+                } else if (action === 'function') {
+                    handleFunction(func);
+                }
+            });
+        });
+
+        clearInputButton.addEventListener('click', () => {
+            currentInput = '0.00';
+            multiplier = 1;
+            updateInputDisplay(formatCurrency(0));
+        });
+
+        orderList.addEventListener('click', (event) => {
+            const itemElement = event.target.closest('.order-item');
+            if (itemElement) {
+                const index = parseInt(itemElement.dataset.index);
+                if (!isNaN(index) && index >= 0 && index < currentOrder.length) {
+                    currentOrder.splice(index, 1); // Remove item
+                    updateOrderDisplay();
+                }
+            }
+        });
+
+        newOrderButton.addEventListener('click', () => {
+            startNewOrder();
+        });
+
+        // Live Display Link button
+        liveDisplayLinkBtn.addEventListener('click', () => {
+            if (projectId && selectedKasseId) {
+                const liveDisplayUrl = `${window.location.origin}/live_display.html?kasse=${selectedKasseId}&project=${projectId}`;
+                liveDisplayUrlInput.value = liveDisplayUrl;
+                liveDisplayOverlay.classList.remove('hidden');
+            } else {
+                showMessage('Fehler', 'Bitte zuerst eine Kasse auswählen und Firebase Project ID prüfen.');
+            }
+        });
+
+        copyLiveDisplayUrlBtn.addEventListener('click', () => {
+            liveDisplayUrlInput.select();
+            document.execCommand('copy');
+            showMessage('Kopiert!', 'Link wurde in die Zwischenablage kopiert.');
+        });
+
+        closeLiveDisplayBtn.addEventListener('click', () => {
+            liveDisplayOverlay.classList.add('hidden');
+        });
+
+        // Admin Login/Logout
+        adminLoginBtn.addEventListener('click', () => {
+            adminLoginOverlay.classList.remove('hidden');
+        });
+
+        cancelLoginBtn.addEventListener('click', () => {
+            adminLoginOverlay.classList.add('hidden');
+            adminUsernameInput.value = 'admin'; // Reset for next time
+            adminPasswordInput.value = 'admin123'; // Reset for next time
+        });
+
+        loginBtn.addEventListener('click', async () => {
+            const username = adminUsernameInput.value;
+            const password = adminPasswordInput.value;
+
+            // Simple hardcoded admin check for demonstration.
+            // In a real app, you'd verify against a database.
+            if (username === 'admin' && password === 'admin123') {
+                isAdminMode = true;
+                adminLoginOverlay.classList.add('hidden');
+                adminLoginBtn.classList.add('hidden');
+                adminLogoutBtn.classList.remove('hidden');
+                adminModeStatus.classList.remove('hidden');
+                showMessage('Admin-Modus', 'Sie sind jetzt im Admin-Modus.');
+                renderAdminMainMenu(); // Show admin menu
+            } else {
+                showMessage('Login Fehlgeschlagen', 'Falscher Benutzername oder Passwort.');
+            }
+        });
+
+        adminLogoutBtn.addEventListener('click', () => {
+            isAdminMode = false;
+            adminLoginBtn.classList.remove('hidden');
+            adminLogoutBtn.classList.add('hidden');
+            adminModeStatus.classList.add('hidden');
+            showMessage('Admin-Modus', 'Sie haben den Admin-Modus verlassen.');
+            renderCategories(); // Go back to normal product view
+        });
+
+
+        // --- Core Logic Functions ---
+
+        function handleNumericInput(value) {
+            if (currentInput === '0.00' && value !== '.') {
+                currentInput = value;
+            } else if (value === '.') {
+                if (!currentInput.includes('.')) {
+                    currentInput += value;
+                }
+            } else {
+                currentInput += value;
+            }
+            updateInputDisplay(currentInput);
+        }
+
+        function handleFunction(func) {
+            const inputValue = parseFloat(currentInput.replace(',', '.')); // Convert comma to dot for parsing
+            if (isNaN(inputValue)) {
+                showMessage('Fehler', 'Ungültige Eingabe.');
+                return;
+            }
+
+            switch (func) {
+                case 'X':
+                    multiplier = inputValue;
+                    updateInputDisplay(formatCurrency(0)); // Clear input after setting multiplier
+                    currentInput = '0.00'; // Reset input for next item price
+                    break;
+                case 'zws': // Zwischensumme / Pay with exact amount
+                    cashGiven = parseFloat(totalAmount.textContent.replace('€', ''));
+                    updateCashAndChange();
+                    currentInput = '0.00';
+                    multiplier = 1;
+                    updateInputDisplay(formatCurrency(0));
+                    break;
+                case 'bar': // Cash payment
+                    cashGiven = inputValue;
+                    updateCashAndChange();
+                    processPayment();
+                    break;
+                default:
+                    console.warn('Unknown function:', func);
+            }
+        }
+
+        function formatCurrency(amount) {
+            return `€${parseFloat(amount).toFixed(2).replace('.', ',')}`; // Format to 2 decimal places and use comma
+        }
+
+        function processPayment() {
+            const total = parseFloat(totalAmount.textContent.replace('€', ''));
+            const change = cashGiven - total;
+
+            if (cashGiven < total) {
+                showMessage('Fehler', `Betrag zu niedrig. Benötigt: ${formatCurrency(total - cashGiven)} mehr.`);
+                return;
+            }
+
+            showMessage('Zahlung erfolgreich', `Gesamt: ${formatCurrency(total)}<br>Bar: ${formatCurrency(cashGiven)}<br>Rückgeld: ${formatCurrency(change)}`);
+            printReceipt(); // Trigger printing
+            showNewOrderButton();
+        }
+
+        function showNewOrderButton() {
+            keypadArea.classList.add('hidden');
+            newOrderArea.classList.remove('hidden');
+        }
+
+        function hideNewOrderButton() {
+            keypadArea.classList.remove('hidden');
+            newOrderArea.classList.add('hidden');
+        }
+
+        function startNewOrder() {
+            currentOrder = [];
+            multiplier = 1;
+            currentInput = '0.00';
+            cashGiven = 0;
+            updateOrderDisplay();
+            updateInputDisplay(formatCurrency(0));
+            hideNewOrderButton();
+        }
+
+        // --- Firebase Data Handling ---
+        async function setupFirestoreListeners() {
+            if (firestoreListenersSetup || !selectedKasseId) {
+                console.log("Firestore listeners already setup or Kasse not selected.");
+                return;
+            }
+            firestoreListenersSetup = true;
+            loadingMessage.classList.remove('hidden');
+            rightPanel.innerHTML = ''; // Clear existing content
+
+            // Listen for categories
+            onSnapshot(collection(db, `kassen/${selectedKasseId}/categories`), (snapshot) => {
+                posData.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                posData.categories.sort((a, b) => (a.order || 0) - (b.order || 0)); // Sort by order
+                console.log("Categories loaded:", posData.categories);
+                if (!isAdminMode) {
+                    renderCategories();
+                } else {
+                    if (currentAdminView === 'categories') {
+                        renderAdminCategories();
+                    } else if (currentAdminView === 'products') {
+                        // If we were on products and categories updated, refresh products
+                        if (currentCategory) {
+                            renderAdminProducts(currentCategory.id);
+                        } else {
+                            renderAdminMainMenu(); // Fallback if no category selected
+                        }
+                    }
+                }
+                loadingMessage.classList.add('hidden');
+            }, (error) => {
+                console.error("Error fetching categories:", error);
+                showMessage('Datenfehler', 'Kategorien konnten nicht geladen werden: ' + error.message);
+                loadingMessage.classList.add('hidden');
+            });
+
+            // Listen for products for the selected Kasse
+            onSnapshot(collection(db, `kassen/${selectedKasseId}/products`), (snapshot) => {
+                posData.products = {}; // Clear existing products
+                snapshot.docs.forEach(doc => {
+                    const product = { id: doc.id, ...doc.data() };
+                    if (!posData.products[product.categoryId]) {
+                        posData.products[product.categoryId] = [];
+                    }
+                    posData.products[product.categoryId].push(product);
+                });
+                // Sort products within each category
+                for (const categoryId in posData.products) {
+                    posData.products[categoryId].sort((a, b) => (a.order || 0) - (b.order || 0));
+                }
+                console.log("Products loaded:", posData.products);
+                if (!isAdminMode) {
+                    if (currentCategory) {
+                        renderProducts(currentCategory.id); // Re-render products for current category
+                    } else {
+                        renderCategories(); // Go back to categories if no category selected
+                    }
+                } else {
+                    if (currentAdminView === 'products' && currentCategory) {
+                        renderAdminProducts(currentCategory.id);
+                    }
+                }
+                loadingMessage.classList.add('hidden');
+            }, (error) => {
+                console.error("Error fetching products:", error);
+                showMessage('Datenfehler', 'Produkte konnten nicht geladen werden: ' + error.message);
+                loadingMessage.classList.add('hidden');
+            });
+
+            // Listen for sellers
+            onSnapshot(collection(db, `kassen/${selectedKasseId}/sellers`), (snapshot) => {
+                posData.sellers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                posData.sellers.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
+                console.log("Sellers loaded:", posData.sellers);
+                if (isAdminMode && currentAdminView === 'sellers') {
+                    renderAdminSellers();
+                }
+            }, (error) => {
+                console.error("Error fetching sellers:", error);
+                showMessage('Datenfehler', 'Verkäufer konnten nicht geladen werden: ' + error.message);
+            });
+        }
+
+        async function addCategory(name, color) {
+            try {
+                await setDoc(doc(db, `kassen/${selectedKasseId}/categories`, name), { name, color, order: Date.now() });
+                showMessage('Erfolg', `Kategorie "${name}" hinzugefügt.`);
+            } catch (e) {
+                console.error("Error adding category: ", e);
+                showMessage('Fehler', 'Kategorie konnte nicht hinzugefügt werden: ' + e.message);
+            }
+        }
+
+        async function deleteCategory(categoryId) {
+            if (confirm(`Sind Sie sicher, dass Sie die Kategorie "${categoryId}" und ALLE zugehörigen Produkte löschen möchten?`)) {
+                try {
+                    // Delete all products in this category first
+                    const productsRef = collection(db, `kassen/${selectedKasseId}/products`);
+                    const q = query(productsRef, where("categoryId", "==", categoryId));
+                    const querySnapshot = await getDocs(q);
+                    const deletePromises = [];
+                    querySnapshot.forEach((doc) => {
+                        deletePromises.push(deleteDoc(doc.ref));
+                    });
+                    await Promise.all(deletePromises);
+
+                    // Then delete the category itself
+                    await deleteDoc(doc(db, `kassen/${selectedKasseId}/categories`, categoryId));
+                    showMessage('Erfolg', `Kategorie "${categoryId}" und zugehörige Produkte gelöscht.`);
+                } catch (e) {
+                    console.error("Error deleting category: ", e);
+                    showMessage('Fehler', 'Kategorie konnte nicht gelöscht werden: ' + e.message);
+                }
+            }
+        }
+
+        async function addProduct(categoryId, name, price) {
+            try {
+                await setDoc(doc(db, `kassen/${selectedKasseId}/products`, `${categoryId}-${name}`), {
+                    categoryId,
+                    name,
+                    price: parseFloat(price),
+                    order: Date.now()
+                });
+                showMessage('Erfolg', `Produkt "${name}" hinzugefügt.`);
+            } catch (e) {
+                console.error("Error adding product: ", e);
+                showMessage('Fehler', 'Produkt konnte nicht hinzugefügt werden: ' + e.message);
+            }
+        }
+
+        async function deleteProduct(productId) {
+            if (confirm(`Sind Sie sicher, dass Sie das Produkt "${productId}" löschen möchten?`)) {
+                try {
+                    await deleteDoc(doc(db, `kassen/${selectedKasseId}/products`, productId));
+                    showMessage('Erfolg', `Produkt "${productId}" gelöscht.`);
+                } catch (e) {
+                    console.error("Error deleting product: ", e);
+                    showMessage('Fehler', 'Produkt konnte nicht gelöscht werden: ' + e.message);
+                }
+            }
+        }
+
+        async function addSeller(name) {
+            try {
+                await setDoc(doc(db, `kassen/${selectedKasseId}/sellers`, name), { name });
+                showMessage('Erfolg', `Verkäufer "${name}" hinzugefügt.`);
+            } catch (e) {
+                console.error("Error adding seller: ", e);
+                showMessage('Fehler', 'Verkäufer konnte nicht hinzugefügt werden: ' + e.message);
+            }
+        }
+
+        async function deleteSeller(sellerId) {
+            if (confirm(`Sind Sie sicher, dass Sie den Verkäufer "${sellerId}" löschen möchten?`)) {
+                try {
+                    await deleteDoc(doc(db, `kassen/${selectedKasseId}/sellers`, sellerId));
+                    showMessage('Erfolg', `Verkäufer "${sellerId}" gelöscht.`);
+                } catch (e) {
+                    console.error("Error deleting seller: ", e);
+                    showMessage('Fehler', 'Verkäufer konnte nicht gelöscht werden: ' + e.message);
+                }
+            }
+        }
+
+        // Function to record sale (for analytics/history)
+        async function recordSale(orderItems, totalAmount, cashPaid, changeGiven) {
+            if (!selectedKasseId) {
+                console.error("Cannot record sale: Kasse not selected.");
+                return;
+            }
+            try {
+                const salesRef = collection(db, `kassen/${selectedKasseId}/sales`);
+                await setDoc(doc(salesRef), {
+                    timestamp: new Date(),
+                    cashierId: userId,
+                    kasseId: selectedKasseId,
+                    items: orderItems,
+                    total: totalAmount,
+                    cashPaid: cashPaid,
+                    change: changeGiven
+                });
+                console.log("Sale recorded successfully.");
+            } catch (e) {
+                console.error("Error recording sale: ", e);
+                showMessage('Fehler', 'Verkauf konnte nicht gespeichert werden: ' + e.message);
+            }
+        }
+
+
+        // --- Rendering Functions for Right Panel ---
+
+        function renderCategories() {
+            if (isAdminMode) return; // Don't render categories in admin mode
+            rightPanel.innerHTML = '';
+            posData.categories.forEach(category => {
+                const categoryButton = document.createElement('button');
+                categoryButton.classList.add('product-button', category.color || 'gray');
+                categoryButton.textContent = category.name;
+                categoryButton.addEventListener('click', () => {
+                    currentCategory = category;
+                    renderProducts(category.id);
+                });
+                rightPanel.appendChild(categoryButton);
+            });
+        }
+
+        function renderProducts(categoryId) {
+            if (isAdminMode) return; // Don't render products in admin mode
+            rightPanel.innerHTML = '';
+
+            // Add a "Back to Categories" button
+            const backButton = document.createElement('button');
+            backButton.classList.add('product-button', 'bg-blue-600');
+            backButton.textContent = '← Kategorien';
+            backButton.addEventListener('click', () => {
+                currentCategory = null;
+                renderCategories();
+            });
+            rightPanel.appendChild(backButton);
+
+            const productsInThisCategory = posData.products[categoryId] || [];
+            productsInThisCategory.forEach(product => {
+                const productButton = document.createElement('button');
+                productButton.classList.add('product-button', posData.categories.find(c => c.id === product.categoryId)?.color || 'gray');
+                productButton.innerHTML = `${product.name}<br>${formatCurrency(product.price)}`;
+                productButton.addEventListener('click', () => addOrderItem(product));
+                rightPanel.appendChild(productButton);
+            });
+        }
+
+        function addOrderItem(product) {
+            const existingItemIndex = currentOrder.findIndex(item => item.id === product.id);
+
+            if (existingItemIndex > -1) {
+                currentOrder[existingItemIndex].qty += multiplier;
+                currentOrder[existingItemIndex].total = currentOrder[existingItemIndex].qty * currentOrder[existingItemIndex].price;
+            } else {
+                currentOrder.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    qty: multiplier,
+                    total: multiplier * product.price
+                });
+            }
+            multiplier = 1; // Reset multiplier after adding item
+            currentInput = '0.00'; // Reset input after adding item
+            updateInputDisplay(formatCurrency(0));
+            updateOrderDisplay();
+        }
+
+        // --- Admin Panel Rendering ---
+        function renderAdminMainMenu() {
+            rightPanel.innerHTML = `
+                <div class="admin-main-menu col-span-4">
+                    <button class="menu-button" data-admin-view="categories">Kategorien verwalten</button>
+                    <button class="menu-button" data-admin-view="products">Produkte verwalten</button>
+                    <button class="menu-button" data-admin-view="sellers">Verkäufer verwalten</button>
+                    <button class="menu-button bg-gray-600 hover:bg-gray-700" data-admin-view="back-to-pos">Zurück zum POS</button>
+                </div>
+            `;
+            rightPanel.classList.remove('grid'); // Remove grid for main menu layout
+            rightPanel.classList.add('flex', 'flex-col', 'items-center', 'justify-center'); // Use flexbox for centering
+
+            document.querySelectorAll('.admin-main-menu .menu-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const view = event.target.dataset.adminView;
+                    currentAdminView = view;
+                    rightPanel.classList.add('grid'); // Re-add grid for specific admin views
+                    rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center'); // Remove flexbox
+                    switch (view) {
+                        case 'categories':
+                            renderAdminCategories();
+                            break;
+                        case 'products':
+                            renderAdminProductsSelection(); // Shows categories to pick from
+                            break;
+                        case 'sellers':
+                            renderAdminSellers();
+                            break;
+                        case 'back-to-pos':
+                            isAdminMode = false; // Exit admin mode
+                            adminLoginBtn.classList.remove('hidden');
+                            adminLogoutBtn.classList.add('hidden');
+                            adminModeStatus.classList.add('hidden');
+                            renderCategories(); // Go back to normal POS view
+                            break;
+                    }
+                });
+            });
+        }
+
+        function renderAdminCategories() {
+            rightPanel.innerHTML = `
+                <div class="admin-config-panel col-span-4">
+                    <div class="admin-config-section">
+                        <h4>Kategorie hinzufügen</h4>
+                        <input type="text" id="newCategoryName" placeholder="Kategoriename">
+                        <select id="newCategoryColor">
+                            <option value="gray">Standard (Grau)</option>
+                            <option value="yellow">Gelb</option>
+                            <option value="orange">Orange</option>
+                            <option value="purple">Lila</option>
+                            <option value="green">Grün</option>
+                            <option value="blue">Blau</option>
+                            <option value="red">Rot</option>
+                            <option value="light-blue">Hellblau</option>
+                            <option value="pink">Pink</option>
+                        </select>
+                        <button id="addCategoryBtn">Hinzufügen</button>
+                    </div>
+                    <div class="admin-config-section">
+                        <h4>Bestehende Kategorien</h4>
+                        <div class="admin-config-list" id="categoryListAdmin">
+                            </div>
+                    </div>
+                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-view="main-menu">Zurück zum Admin Menü</button>
+                </div>
+            `;
+            rightPanel.classList.add('grid'); // Ensure grid layout for admin panels
+            rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center'); // Remove flexbox
+
+            const categoryListAdmin = document.getElementById('categoryListAdmin');
+            posData.categories.forEach(category => {
+                const item = document.createElement('div');
+                item.classList.add('admin-config-item');
+                item.innerHTML = `
+                    <span>${category.name} (${category.color})</span>
+                    <div>
+                        <button class="delete" data-id="${category.id}">Löschen</button>
+                    </div>
+                `;
+                categoryListAdmin.appendChild(item);
+            });
+
+            document.getElementById('addCategoryBtn').addEventListener('click', () => {
+                const name = document.getElementById('newCategoryName').value;
+                const color = document.getElementById('newCategoryColor').value;
+                if (name) {
+                    addCategory(name, color);
+                } else {
+                    showMessage('Eingabefehler', 'Bitte geben Sie einen Kategorienamen ein.');
+                }
+            });
+
+            categoryListAdmin.addEventListener('click', (event) => {
+                if (event.target.classList.contains('delete')) {
+                    deleteCategory(event.target.dataset.id);
+                }
+            });
+
+            // Back button listener (for "Zurück zum Admin Menü")
+            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
+                currentAdminView = 'main';
+                renderAdminMainMenu();
+            });
+        }
+
+        function renderAdminProductsSelection() {
+            rightPanel.innerHTML = `
+                <div class="admin-config-panel col-span-4">
+                    <h4 class="col-span-4 text-center">Produkte verwalten - Kategorie auswählen</h4>
+                    <div class="grid grid-cols-4 gap-3 admin-config-list p-2" id="productCategorySelectionList">
+                        </div>
+                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-view="main-menu">Zurück zum Admin Menü</button>
+                </div>
+            `;
+            rightPanel.classList.add('grid');
+            rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
+
+            const productCategorySelectionList = document.getElementById('productCategorySelectionList');
+            posData.categories.forEach(category => {
+                const categoryButton = document.createElement('button');
+                categoryButton.classList.add('product-button', category.color || 'gray'); // Reusing product-button styles
+                categoryButton.textContent = category.name;
+                categoryButton.addEventListener('click', () => {
+                    currentCategory = category; // Set current category for product management
+                    renderAdminProducts(category.id);
+                });
+                productCategorySelectionList.appendChild(categoryButton);
+            });
+
+            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
+                currentAdminView = 'main';
+                renderAdminMainMenu();
+            });
+        }
+
+
+        function renderAdminProducts(categoryId) {
+            const category = posData.categories.find(c => c.id === categoryId);
+            if (!category) {
+                showMessage('Fehler', 'Kategorie nicht gefunden.');
+                renderAdminProductsSelection(); // Go back to category selection
+                return;
+            }
+
+            rightPanel.innerHTML = `
+                <div class="admin-config-panel col-span-4">
+                    <h4>Produkte in "${category.name}" verwalten</h4>
+                    <div class="admin-config-section">
+                        <h4>Produkt hinzufügen</h4>
+                        <input type="text" id="newProductName" placeholder="Produktname">
+                        <input type="number" step="0.01" id="newProductPrice" placeholder="Preis (z.B. 2.50)">
+                        <button id="addProductBtn">Hinzufügen</button>
+                    </div>
+                    <div class="admin-config-section">
+                        <h4>Bestehende Produkte</h4>
+                        <div class="admin-config-list" id="productListAdmin">
+                            </div>
+                    </div>
+                    <button class="menu-button bg-blue-600 hover:bg-blue-700 col-span-4 mt-4" data-admin-view="products-selection">← Kategorien auswählen</button>
+                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-2" data-admin-view="main-menu">Zurück zum Admin Menü</button>
+                </div>
+            `;
+
+            const productListAdmin = document.getElementById('productListAdmin');
+            const productsInThisCategory = posData.products[categoryId] || [];
+            productsInThisCategory.forEach(product => {
+                const item = document.createElement('div');
+                item.classList.add('admin-config-item');
+                item.innerHTML = `
+                    <span>${product.name} - ${formatCurrency(product.price)}</span>
+                    <div>
+                        <button class="delete" data-id="${product.id}">Löschen</button>
+                    </div>
+                `;
+                productListAdmin.appendChild(item);
+            });
+
+            document.getElementById('addProductBtn').addEventListener('click', () => {
+                const name = document.getElementById('newProductName').value;
+                const price = document.getElementById('newProductPrice').value;
+                if (name && price) {
+                    addProduct(categoryId, name, price);
+                } else {
+                    showMessage('Eingabefehler', 'Bitte geben Sie Produktname und Preis ein.');
+                }
+            });
+
+            productListAdmin.addEventListener('click', (event) => {
+                if (event.target.classList.contains('delete')) {
+                    deleteProduct(event.target.dataset.id);
+                }
+            });
+
+            // Back button listeners
+            document.querySelector('.admin-config-panel .menu-button[data-admin-view="products-selection"]').addEventListener('click', () => {
+                currentCategory = null; // Clear selected category for products
+                renderAdminProductsSelection();
+            });
+            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
+                currentCategory = null; // Clear selected category for products
+                currentAdminView = 'main';
+                renderAdminMainMenu();
+            });
+        }
+
+
+        function renderAdminSellers() {
+            rightPanel.innerHTML = `
+                <div class="admin-config-panel col-span-4">
+                    <div class="admin-config-section">
+                        <h4>Verkäufer hinzufügen</h4>
+                        <input type="text" id="newSellerName" placeholder="Verkäufername">
+                        <button id="addSellerBtn">Hinzufügen</button>
+                    </div>
+                    <div class="admin-config-section">
+                        <h4>Bestehende Verkäufer</h4>
+                        <div class="admin-config-list" id="sellerListAdmin">
+                            </div>
+                    </div>
+                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-view="main-menu">Zurück zum Admin Menü</button>
+                </div>
+            `;
+            rightPanel.classList.add('grid');
+            rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
+
+
+            const sellerListAdmin = document.getElementById('sellerListAdmin');
+            posData.sellers.forEach(seller => {
+                const item = document.createElement('div');
+                item.classList.add('admin-config-item');
+                item.innerHTML = `
+                    <span>${seller.name}</span>
+                    <div>
+                        <button class="delete" data-id="${seller.id}">Löschen</button>
+                    </div>
+                `;
+                sellerListAdmin.appendChild(item);
+            });
+
+            document.getElementById('addSellerBtn').addEventListener('click', () => {
+                const name = document.getElementById('newSellerName').value;
+                if (name) {
+                    addSeller(name);
+                } else {
+                    showMessage('Eingabefehler', 'Bitte geben Sie einen Verkäufernamen ein.');
+                }
+            });
+
+            sellerListAdmin.addEventListener('click', (event) => {
+                if (event.target.classList.contains('delete')) {
+                    deleteSeller(event.target.dataset.id);
+                }
+            });
+
+            // Back button listener
+            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
+                currentAdminView = 'main';
+                renderAdminMainMenu();
+            });
+        }
+
+        // --- Print Functionality (Wertbon) ---
+
+        function printReceipt() {
+            const printArea = document.createElement('div');
+            printArea.id = 'print-area-temp'; // ID for CSS targeting
+            document.body.appendChild(printArea); // Temporarily append to body
+
+            // Create a wrapper for the actual bon content to use page-break-inside
+            const wertbonDiv = document.createElement('div');
+            wertbonDiv.classList.add('wertbon-print-area');
+            printArea.appendChild(wertbonDiv);
+
+            wertbonDiv.innerHTML = `
+                <h2>Wertbon</h2>
+                <p style="text-align: center;">${selectedKasseName}</p>
+                <p style="text-align: center;">Datum: ${new Date().toLocaleDateString('de-DE')}</p>
+                <p style="text-align: center;">Uhrzeit: ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
+                <div class="dashed-line"></div>
+                ${currentOrder.map(item => `
+                    <p class="item-line">${item.qty}x ${item.name} <span style="float: right;">${formatCurrency(item.total)}</span></p>
+                `).join('')}
+                <div class="dashed-line"></div>
+                <p class="item-line">TOTAL: <span style="float: right;">${totalAmount.textContent}</span></p>
+                <p>BAR: <span style="float: right;">${cashAmount.textContent}</span></p>
+                <p>RÜCKGELD: <span style="float: right;">${changeAmount.textContent}</span></p>
+                <div class="dashed-line"></div>
+                <p class="thank-you" style="text-align: center;">Vielen Dank für Ihren Einkauf!</p>
+                <p class="small-note" style="text-align: center; margin-top: 20px;">
+                    <img src="https://via.placeholder.com/100x50.png?text=LOGO" alt="Logo" style="width: 50mm; margin: 0 auto; display: block;">
+                </p>
+                <p class="italic-note" style="text-align: center;">Bspw. Footer-Nachricht, Adresse, Website etc.</p>
+            `;
+
+            window.print(); // Trigger the print dialog
+
+            // Clean up the temporary print area after printing
+            setTimeout(() => {
+                document.body.removeChild(printArea);
+                recordSale(currentOrder, parseFloat(totalAmount.textContent.replace('€', '')), cashGiven, parseFloat(changeAmount.textContent.replace('€', '')));
+                startNewOrder(); // Start a new order after printing
+            }, 500); // Give browser a moment to handle print dialog
+        }
+    </script>
+</body>
+</html>
