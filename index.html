@@ -471,6 +471,12 @@
 
         /* Wertbon Print Style */
         @media print {
+            @page {
+                margin: 0; /* Remove default page margins */
+                /* These properties are not widely supported or reliably remove browser headers/footers */
+                /* size: 80mm auto; */ /* Attempt to set page size based on content height for 80mm width */
+            }
+
             body * {
                 visibility: hidden;
             }
@@ -496,11 +502,10 @@
                 box-sizing: border-box;
                 page-break-after: always; /* Force a page break after each bon */
                 background-color: white; /* Ensure white background for print */
-                margin-bottom: 10mm; /* Space between bons for better separation visually on screen */
+                margin-bottom: 0; /* Remove margin between print areas if page-break-after is used */
             }
             .wertbon-print-area:last-child {
                 page-break-after: auto; /* No page break after the very last bon */
-                margin-bottom: 0;
             }
             .wertbon-print-area h2, .wertbon-print-area h3 {
                 text-align: center;
@@ -567,12 +572,11 @@
                 box-sizing: border-box;
                 page-break-after: always; /* Each item bon on its own page */
                 background-color: white; /* Ensure white background for print */
-                margin-bottom: 10mm;
+                margin-bottom: 0; /* Remove margin between print areas if page-break-after is used */
                 border: 1px dashed #000; /* Add a border to distinguish item bons */
             }
             .item-bon:last-child {
                 page-break-after: auto;
-                margin-bottom: 0;
             }
             .item-bon h3 {
                 text-align: center;
