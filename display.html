@@ -1,1 +1,301 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Bestellungsanzeige</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .display-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #2e2e2e;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            padding: 2rem;
+            text-align: center;
+            border: 5px solid #000;
+        }
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #ffcc00;
+            margin-bottom: 1.5rem;
+        }
+        .order-display-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 2rem 0;
+            border-top: 1px solid #5a5a5a;
+            border-bottom: 1px solid #5a5a5a;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .order-display-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            font-size: 1.5rem;
+            border-bottom: 1px dashed #4a4a4a;
+        }
+        .order-display-item:last-child {
+            border-bottom: none;
+        }
+        .order-display-item .qty {
+            font-weight: bold;
+            width: 15%;
+            text-align: left;
+        }
+        .order-display-item .name {
+            width: 60%;
+            text-align: left;
+        }
+        .order-display-item .price {
+            width: 25%;
+            text-align: right;
+            font-weight: bold;
+        }
+        .total-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #66ff66;
+            margin-top: 1.5rem;
+        }
+        .message-box-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .message-box {
+            background-color: #333;
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 2px solid #555;
+        }
+        .message-box h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #ffcc00;
+        }
+        .message-box p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+        .message-box button {
+            background-color: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .message-box button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="display-container">
+        <h1 id="displayTitle">Aktuelle Bestellung</h1>
+        <ul id="liveOrderList" class="order-display-list">
+            </ul>
+        <div id="liveOrderTotal" class="total-display">TOTAL: €0.00</div>
+        <p class="text-sm text-gray-400 mt-4" id="displayAppUserId">[UserID: Laden...]</p>
+    </div>
 
+    <div id="messageBoxOverlay" class="message-box-overlay hidden">
+        <div class="message-box">
+            <h3 id="messageBoxTitle">Nachricht</h3>
+            <p id="messageBoxContent"></p>
+            <button id="messageBoxClose">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration - REPLACE with your actual Firebase project config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
+            authDomain: "verkaufssoftware.firebaseapp.com",
+            projectId: "verkaufssoftware",
+            storageBucket: "verkaufssoftware.firebasestorage.app",
+            messagingSenderId: "268747007466",
+            appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
+            measurementId: "G-RMX5KJK543"
+        };
+        // For GitHub deployment, use your projectId as appId
+        const appId = firebaseConfig.projectId;
+
+        let app;
+        let db;
+        let auth;
+        let displayUserId; // This will hold the actual Firebase User ID from auth state
+        let currentRegisterId = 'register1'; // Default register ID for display
+
+        // DOM Elements
+        const liveOrderList = document.getElementById('liveOrderList');
+        const liveOrderTotal = document.getElementById('liveOrderTotal');
+        const displayTitle = document.getElementById('displayTitle');
+        const displayAppUserId = document.getElementById('displayAppUserId'); // Element to show the user ID
+
+        const messageBoxOverlay = document.getElementById('messageBoxOverlay');
+        const messageBoxTitle = document.getElementById('messageBoxTitle');
+        const messageBoxContent = document.getElementById('messageBoxContent');
+        const messageBoxClose = document.getElementById('messageBoxClose');
+
+
+        // Function to parse URL parameters
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+        // --- Firebase Initialization and Listeners ---
+        async function initializeFirebaseAndListeners() {
+            try {
+                if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    console.log("Firebase initialized on display page.");
+
+                    // Get registerId from URL parameters
+                    const paramRegisterId = getUrlParameter('registerId');
+                    if (paramRegisterId) {
+                        currentRegisterId = paramRegisterId;
+                        displayTitle.textContent = `Aktuelle Bestellung - ${currentRegisterId.replace('register', 'Kasse ')}`;
+                    } else {
+                        displayTitle.textContent = `Aktuelle Bestellung - Kasse 1 (Standard)`;
+                    }
+
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            displayUserId = user.uid;
+                            displayAppUserId.textContent = `[UserID: ${displayUserId}] (Register: ${currentRegisterId.replace('register', 'Kasse ')})`;
+                            console.log("Display page user authenticated. Current userId:", displayUserId);
+                            setupLiveOrderListener();
+                        } else {
+                            try {
+                                console.log("No user signed in on display page, attempting signInAnonymously...");
+                                await signInAnonymously(auth);
+                            } catch (anonSignInError) {
+                                console.error("Anonymous sign-in failed on display page:", anonSignInError);
+                                displayUserId = 'anonymous_fallback';
+                                displayAppUserId.textContent = `[UserID: ${displayUserId} (Fehler)] (Register: ${currentRegisterId.replace('register', 'Kasse ')})`;
+                                showMessageBox('Fehler', 'Anzeigefehler: Konnte keine Verbindung zur Firebase-Authentifizierung herstellen.');
+                                renderLiveOrder({ items: [], total: 0 }); // Clear on error
+                            }
+                        }
+                    });
+                } else {
+                    console.warn("Firebase configuration not provided or incomplete on display page. Live order will not be displayed.");
+                    displayAppUserId.textContent = `[UserID: Nicht konfiguriert]`;
+                    showMessageBox('Fehler', 'Anzeigefehler: Firebase-Konfiguration fehlt.');
+                    renderLiveOrder({ items: [], total: 0 }); // Clear on error
+                }
+            } catch (error) {
+                console.error("Fatal error during Firebase app initialization on display page:", error);
+                showMessageBox('Fehler', 'Schwerwiegender Fehler beim Initialisieren von Firebase. Live-Bestellung kann nicht geladen werden.');
+                renderLiveOrder({ items: [], total: 0 }); // Clear on error
+            }
+        }
+
+        function setupLiveOrderListener() {
+            if (!db) {
+                console.warn("Firestore not available for live order listener.");
+                return;
+            }
+            // Listen to the specific register's live order document
+            const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, currentRegisterId);
+            onSnapshot(liveOrderDocRef, (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    const orderData = docSnapshot.data();
+                    console.log(`Live order for ${currentRegisterId} updated:`, orderData);
+                    renderLiveOrder(orderData);
+                } else {
+                    console.log(`No live order data for ${currentRegisterId}. Clearing display.`);
+                    renderLiveOrder({ items: [], total: 0 }); // Clear display if no data
+                }
+            }, (error) => {
+                console.error("Error fetching live order:", error);
+                showMessageBox('Fehler', 'Live-Bestellung konnte nicht geladen werden: ' + error.message);
+                renderLiveOrder({ items: [], total: 0 }); // Clear on error
+            });
+        }
+
+        function renderLiveOrder(orderData) {
+            liveOrderList.innerHTML = '';
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('order-display-item');
+                    listItem.innerHTML = `
+                        <span class="qty">${item.quantity}x</span>
+                        <span class="name">${item.name.toUpperCase()}</span>
+                        <span class="price">€${(item.quantity * item.price).toFixed(2)}</span>
+                    `;
+                    liveOrderList.appendChild(listItem);
+                });
+                liveOrderTotal.textContent = `TOTAL: €${orderData.total.toFixed(2)}`;
+            } else {
+                liveOrderList.innerHTML = '<li class="order-display-item text-gray-500">Keine Artikel in der aktuellen Bestellung.</li>';
+                liveOrderTotal.textContent = `TOTAL: €0.00`;
+            }
+        }
+
+        // --- Event Listeners ---
+        messageBoxClose.addEventListener('click', hideMessageBox);
+
+        /**
+         * Displays the message box.
+         * @param {string} title
+         * @param {string} content
+         */
+        function showMessageBox(title, content) {
+            messageBoxTitle.textContent = title;
+            messageBoxContent.textContent = content;
+            messageBoxOverlay.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the message box.
+         */
+        function hideMessageBox() {
+            messageBoxOverlay.classList.add('hidden');
+        }
+
+        initializeFirebaseAndListeners();
+    </script>
+</body>
+</html>
