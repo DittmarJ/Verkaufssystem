@@ -473,7 +473,6 @@
         @media print {
             @page {
                 margin: 0; /* Remove default page margins */
-                /* These properties are not widely supported or reliably remove browser headers/footers */
                 /* size: 80mm auto; */ /* Attempt to set page size based on content height for 80mm width */
             }
 
@@ -494,10 +493,10 @@
             }
             .wertbon-print-area {
                 width: 80mm; /* Common receipt printer width */
-                padding: 10mm;
+                padding: 5mm; /* Reduced padding */
                 font-family: 'monospace';
                 font-size: 12px;
-                line-height: 1.4;
+                line-height: 1.2; /* Reduced line height */
                 color: #000;
                 box-sizing: border-box;
                 page-break-after: always; /* Force a page break after each bon */
@@ -507,18 +506,29 @@
             .wertbon-print-area:last-child {
                 page-break-after: auto; /* No page break after the very last bon */
             }
-            .wertbon-print-area h2, .wertbon-print-area h3 {
+            .wertbon-print-area h2 {
                 text-align: center;
-                margin-bottom: 5px;
+                margin-top: 0;
+                margin-bottom: 2px; /* Reduced margin */
+                font-size: 16px;
+            }
+            .wertbon-print-area h3 {
+                text-align: center;
+                margin-top: 0;
+                margin-bottom: 5px; /* Reduced margin */
+                font-size: 14px;
+            }
+            .wertbon-print-area p {
+                margin: 2px 0; /* Reduced margin */
             }
             .wertbon-print-area table {
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 10px;
+                margin-top: 5px; /* Reduced margin */
             }
             /* Table Headers */
             .wertbon-print-area th {
-                padding: 2px 0;
+                padding: 1px 0; /* Reduced padding */
                 text-align: left; /* Default left */
                 font-weight: bold; /* Make headers bold */
             }
@@ -527,7 +537,7 @@
             }
             /* Table Data Cells */
             .wertbon-print-area td {
-                padding: 2px 0;
+                padding: 1px 0; /* Reduced padding */
                 border-bottom: 1px dashed #ccc; /* Dashed line for items */
             }
             .wertbon-print-area tbody tr:last-child td {
@@ -545,18 +555,19 @@
                 font-weight: bold;
                 border-top: none; /* Override dashed line if present from previous row */
                 border-bottom: 2px solid #000; /* Solid line after total */
-                padding-top: 5px; /* Spacing above total */
-                padding-bottom: 5px; /* Spacing below total */
+                padding-top: 3px; /* Spacing above total */
+                padding-bottom: 3px; /* Spacing below total */
             }
             .wertbon-print-area .summary-line {
                 display: flex;
                 justify-content: space-between;
-                padding: 2px 0;
-                margin-top: 2px; /* Small space after total line */
+                padding: 1px 0; /* Reduced padding */
+                margin-top: 1px; /* Small space after total line */
             }
             .wertbon-print-area .thank-you {
                 text-align: center;
-                margin-top: 15px;
+                margin-top: 8px; /* Reduced margin */
+                margin-bottom: 0;
                 font-size: 14px;
                 font-weight: bold;
             }
@@ -564,10 +575,10 @@
             /* Specific style for individual item bons */
             .item-bon {
                 width: 80mm; /* Same width as main receipt */
-                padding: 10mm;
+                padding: 5mm; /* Reduced padding */
                 font-family: 'monospace';
                 font-size: 12px;
-                line-height: 1.4;
+                line-height: 1.2; /* Reduced line height */
                 color: #000;
                 box-sizing: border-box;
                 page-break-after: always; /* Each item bon on its own page */
@@ -580,17 +591,18 @@
             }
             .item-bon h3 {
                 text-align: center;
-                margin-bottom: 10px;
+                margin-top: 0;
+                margin-bottom: 5px; /* Reduced margin */
                 font-size: 16px;
                 color: #000;
             }
             .item-bon p {
-                margin: 5px 0;
+                margin: 2px 0; /* Reduced margin */
             }
             .item-bon .item-bon-detail {
                 display: flex;
                 justify-content: space-between;
-                margin-bottom: 5px;
+                margin-bottom: 3px; /* Reduced margin */
                 font-size: 14px;
                 font-weight: bold;
             }
@@ -605,7 +617,8 @@
             }
             .item-bon .stand-info {
                 text-align: center;
-                margin-top: 15px;
+                margin-top: 8px; /* Reduced margin */
+                margin-bottom: 0;
                 font-size: 12px;
                 color: #555;
             }
@@ -969,7 +982,6 @@
                     console.log("Calling renderAdminSellerManagement due to seller snapshot update.");
                     renderAdminSellerManagement();
                 }
-                loadingMessage.classList.add('hidden');
             }, (error) => {
                 console.error("Error fetching sellers:", error);
                 showMessageBox('Fehler', 'Verkäufer konnten nicht geladen werden.');
@@ -1299,7 +1311,8 @@
                 <div class="wertbon-print-area">
                     <h2>Kassenbon</h2>
                     <h3>Ihr Einkauf</h3>
-                    <p>Datum: ${currentDateTime}</p>
+                    <p>Datum: ${currentDateTime.split(',')[0]}</p>
+                    <p>Uhrzeit: ${currentDateTime.split(',')[1].trim()}</p>
                     <p>Kasse: ${cashRegisterSelect.options[cashRegisterSelect.selectedIndex].text}</p>
                     <table>
                         <thead>
@@ -1314,7 +1327,7 @@
                             ${mainReceiptItemsHtml}
                         </tbody>
                     </table>
-                    <div class="summary-line" style="margin-top: 10px;">
+                    <div class="summary-line" style="margin-top: 5px;">
                         <span>ZWISCHENSUMME</span>
                         <span>${subtotalAmount.textContent}</span>
                     </div>
@@ -1350,7 +1363,7 @@
                             <p style="text-align: center;">----------------------------</p>
                             <p class="stand-info">Einlösbar bei: <strong>${item.stand || 'Alle Stände'}</strong></p>
                             <p style="text-align: center;">Gültig am: ${currentDateTime.split(',')[0]}</p>
-                            <p style="text-align: center; margin-top: 20px;">Vielen Dank!</p>
+                            <p style="text-align: center; margin-top: 5px;">Vielen Dank!</p>
                         </div>
                     `;
                 }
