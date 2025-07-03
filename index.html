@@ -1,1699 +1,800 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kassensystem</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-        .pos-container {
-            width: 100%;
-            max-width: 1024px;
-            height: 768px; /* Fixed height for the entire POS system screen */
-            background-color: #1a1a1a;
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border: 5px solid #000;
-        }
-        .header-bar {
-            background-color: #383838;
-            color: #ccc;
-            padding: 0.75rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
-            border-top-left-radius: 1.2rem;
-            border-top-right-radius: 1.2rem;
-            border-bottom: 1px solid #4a4a4a;
-            height: 60px; /* Fixed height for the header */
-        }
-        .header-bar .user-badge {
-            background-color: #007bff;
-            color: white;
-            padding: 0.4rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .header-bar .status-item {
-            margin-left: 1.5rem;
-            font-weight: 600;
-        }
-        .header-bar .change-display {
-            color: #66ff66;
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-left: 0.5rem;
-        }
-        .main-content {
-            flex-grow: 1; /* Takes remaining height after header and footer */
-            display: flex;
-            padding: 1rem;
-            gap: 1rem;
-        }
-        .left-panel {
-            background-color: #2e2e2e;
-            width: 350px; /* Fixed width for the left panel */
-            flex-shrink: 0; /* Prevents it from shrinking */
-            border-radius: 0.75rem;
-            display: flex;
-            flex-direction: column;
-            padding: 1rem;
-            color: #eee;
-            border: 1px solid #4a4a4a;
-            height: 100%; /* Takes 100% of main-content's height */
-        }
-        .order-list-header {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0.25rem;
-            font-weight: bold;
-            border-bottom: 1px solid #5a5a5a;
-            margin-bottom: 0.5rem;
-            font-size: 0.85rem;
-            color: #bbb;
-            flex-shrink: 0; /* Prevent header from shrinking */
-        }
-        .order-list-container {
-            flex-grow: 1; /* Takes all available vertical space in left-panel */
-            overflow-y: auto; /* Enable scrolling for overflow */
-            margin-bottom: 0.5rem;
-            padding-bottom: 0.5rem;
-        }
-        .order-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.2rem 0.25rem;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: background-color 0.1s ease;
-        }
-        .order-item:hover {
-            background-color: #3b3b3b;
-        }
-        .order-item .qty { width: 10%; text-align: left; }
-        .order-item .name { width: 60%; text-align: left; }
-        .order-item .price { width: 30%; text-align: right; }
-        .summary-section {
-            padding-top: 1rem;
-            font-size: 1.1rem;
-            border-top: 1px solid #5a5a5a;
-            flex-shrink: 0; /* Prevent summary from shrinking */
-        }
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-        }
-        .summary-item.subtotal {
-            font-size: 1.1rem;
-            color: #ccc;
-        }
-        .summary-item.total {
-            font-weight: bold;
-            font-size: 1.5rem;
-            color: #ffcc00;
-        }
-        .summary-item.cash {
-            font-size: 1.1rem;
-            color: #ccc;
-        }
-        .summary-item.change {
-            font-weight: bold;
-            font-size: 1.5rem;
-            color: #66ff66;
-        }
-        .right-panel {
-            flex: 1; /* Takes all remaining width */
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.7rem;
-            align-content: start;
-            height: 100%; /* Takes 100% of main-content's height */
-        }
-        .product-button {
-            background-color: #555;
-            color: white;
-            padding: 1rem 0.5rem;
-            border-radius: 0.75rem;
-            text-align: center;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1.2;
-            height: 75px;
-        }
-        .product-button:hover {
-            background-color: #666;
-        }
-        /* Color classes for dynamic categories */
-        .product-button.yellow { background-color: #ffc107; color: #333; }
-        .product-button.orange { background-color: #fd7e14; }
-        .product-button.purple { background-color: #6f42c1; }
-        .product-button.green { background-color: #28a745; }
-        .product-button.blue { background-color: #007bff; }
-        .product-button.red { background-color: #dc3545; }
-        .product-button.light-blue { background-color: #17a2b8; }
-        .product-button.pink { background-color: #e83e8c; }
-        .product-button.gray { background-color: #6c757d; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kassensystem</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .pos-container {
+            width: 100%;
+            max-width: 1024px;
+            height: 768px; /* Fixed height for the entire POS system screen */
+            background-color: #1a1a1a;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 5px solid #000;
+        }
+        .header-bar {
+            background-color: #383838;
+            color: #ccc;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            border-top-left-radius: 1.2rem;
+            border-top-right-radius: 1.2rem;
+            border-bottom: 1px solid #4a4a4a;
+            height: 60px; /* Fixed height for the header */
+        }
+        .header-bar .user-badge {
+            background-color: #007bff;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .header-bar .status-item {
+            margin-left: 1.5rem;
+            font-weight: 600;
+        }
+        .header-bar .change-display {
+            color: #66ff66;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-left: 0.5rem;
+        }
+        .main-content {
+            flex-grow: 1; /* Takes remaining height after header and footer */
+            display: flex;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        .left-panel {
+            background-color: #2e2e2e;
+            width: 350px; /* Fixed width for the left panel */
+            flex-shrink: 0; /* Prevents it from shrinking */
+            border-radius: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            color: #eee;
+            border: 1px solid #4a4a4a;
+            height: 100%; /* Takes 100% of main-content's height */
+        }
+        .order-list-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0.25rem;
+            font-weight: bold;
+            border-bottom: 1px solid #5a5a5a;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: #bbb;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+        .order-list-container {
+            flex-grow: 1; /* Takes all available vertical space in left-panel */
+            overflow-y: auto; /* Enable scrolling for overflow */
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0.25rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+        }
+        .order-item:hover {
+            background-color: #3b3b3b;
+        }
+        .order-item .qty { width: 10%; text-align: left; }
+        .order-item .name { width: 60%; text-align: left; }
+        .order-item .price { width: 30%; text-align: right; }
+        .summary-section {
+            padding-top: 1rem;
+            font-size: 1.1rem;
+            border-top: 1px solid #5a5a5a;
+            flex-shrink: 0; /* Prevent summary from shrinking */
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+        }
+        .summary-item.subtotal {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        .summary-item.total {
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #ffcc00;
+        }
+        .summary-item.cash {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        .summary-item.change {
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #66ff66;
+        }
+        .right-panel {
+            flex: 1; /* Takes all remaining width */
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.7rem;
+            align-content: start;
+            height: 100%; /* Takes 100% of main-content's height */
+        }
+        .product-button {
+            background-color: #555;
+            color: white;
+            padding: 1rem 0.5rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+            height: 75px;
+        }
+        .product-button:hover {
+            background-color: #666;
+        }
+        /* Color classes for dynamic categories */
+        .product-button.yellow { background-color: #ffc107; color: #333; }
+        .product-button.orange { background-color: #fd7e14; }
+        .product-button.purple { background-color: #6f42c1; }
+        .product-button.green { background-color: #28a745; }
+        .product-button.blue { background-color: #007bff; }
+        .product-button.red { background-color: #dc3545; }
+        .product-button.light-blue { background-color: #17a2b8; }
+        .product-button.pink { background-color: #e83e8c; }
+        .product-button.gray { background-color: #6c757d; }
 
 
-        .bottom-panel-container {
-            background-color: #2e2e2e;
-            padding: 1rem;
-            border-bottom-left-radius: 1.2rem;
-            border-bottom-right-radius: 1.2rem;
-            color: white;
-            border-top: 1px solid #4a4a4a;
-            height: 300px; /* Sufficient height for dynamic content */
-        }
+        .bottom-panel-container {
+            background-color: #2e2e2e;
+            padding: 1rem;
+            border-bottom-left-radius: 1.2rem;
+            border-bottom-right-radius: 1.2rem;
+            color: white;
+            border-top: 1px solid #4a4a4a;
+            height: 300px; /* Sufficient height for dynamic content */
+        }
 
-        .input-display-area {
-            display: flex;
-            align-items: center;
-            background-color: #1a1a1a;
-            border-radius: 0.5rem;
-            margin-bottom: 0.7rem;
-            border: 1px solid #4a4a4a;
-            min-height: 2.5rem; /* ~40px */
-            padding-right: 1rem; /* Padding for the display text */
-        }
+        .input-display-area {
+            display: flex;
+            align-items: center;
+            background-color: #1a1a1a;
+            border-radius: 0.5rem;
+            margin-bottom: 0.7rem;
+            border: 1px solid #4a4a4a;
+            min-height: 2.5rem; /* ~40px */
+            padding-right: 1rem; /* Padding for the display text */
+        }
 
-        .input-display-line {
-            flex-grow: 1; /* Takes up remaining space */
-            color: #66ff66;
-            font-size: 2rem;
-            font-weight: bold;
-            text-align: right;
-            padding: 0.5rem 0; /* Padding handled by parent */
-        }
+        .input-display-line {
+            flex-grow: 1; /* Takes up remaining space */
+            color: #66ff66;
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: right;
+            padding: 0.5rem 0; /* Padding handled by parent */
+        }
 
-        .clear-input-button {
-            background-color: #dc3545; /* Red color for Clear */
-            color: white;
-            font-weight: bold;
-            font-size: 1.2rem;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            margin-left: 0.5rem; /* Space between button and display */
-            height: 40px; /* Match height of input display roughly */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .clear-input-button:hover {
-            background-color: #c82333;
-        }
+        .clear-input-button {
+            background-color: #dc3545; /* Red color for Clear */
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-left: 0.5rem; /* Space between button and display */
+            height: 40px; /* Match height of input display roughly */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .clear-input-button:hover {
+            background-color: #c82333;
+        }
 
-        .bottom-panel {
-            display: grid;
-            grid-template-columns: repeat(3, 0.8fr) 1fr 1.2fr;
-            gap: 0.7rem;
-        }
-        
-        .num-button, .action-button {
-            height: 60px; /* Smaller consistent height for all buttons */
-            border-radius: 0.75rem; /* Ensure rounded corners for consistency */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            padding: 0.5rem; /* Reduced padding for smaller buttons */
-        }
+        .bottom-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 0.8fr) 1fr 1.2fr;
+            gap: 0.7rem;
+        }
+        
+        .num-button, .action-button {
+            height: 60px; /* Smaller consistent height for all buttons */
+            border-radius: 0.75rem; /* Ensure rounded corners for consistency */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            padding: 0.5rem; /* Reduced padding for smaller buttons */
+        }
 
-        .num-button {
-            background-color: #505050;
-            font-size: 1.2rem; /* Smaller font size for numbers */
-        }
-        .num-button:hover {
-            background-color: #606060;
-        }
-        .num-button.decimal {
-            font-size: 1.8rem; /* Slightly larger font for decimal comma */
-        }
+        .num-button {
+            background-color: #505050;
+            font-size: 1.2rem; /* Smaller font size for numbers */
+        }
+        .num-button:hover {
+            background-color: #606060;
+        }
+        .num-button.decimal {
+            font-size: 1.8rem; /* Slightly larger font for decimal comma */
+        }
 
-        .action-button {
-            background-color: #444;
-            font-size: 1.2rem; /* Standard font size for action buttons (now smaller overall) */
-        }
-        .action-button:hover {
-            background-color: #555;
-        }
+        .action-button {
+            background-color: #444;
+            font-size: 1.2rem; /* Standard font size for action buttons (now smaller overall) */
+        }
+        .action-button:hover {
+            background-color: #555;
+        }
 
-        .action-button[data-input="X"],
-        .action-button[data-action="function"][data-function="zws"],
-        .action-button[data-action="function"][data-function="bar"] {
-            font-size: 1.6rem; /* Larger font size to make them stand out */
-        }
-        
-        .action-button.yellow-func { background-color: #ffc107; color: #333; }
-        .action-button.purple-func { background-color: #6f42c1; }
-        .action-button.bar-func { background-color: #66ff66; color: #333; }
+        .action-button[data-input="X"],
+        .action-button[data-action="function"][data-function="zws"],
+        .action-button[data-action="function"][data-function="bar"] {
+            font-size: 1.6rem; /* Larger font size to make them stand out */
+        }
+        
+        .action-button.yellow-func { background-color: #ffc107; color: #333; }
+        .action-button.purple-func { background-color: #6f42c1; }
+        .action-button.bar-func { background-color: #66ff66; color: #333; }
 
-        /* New Order Button Styling */
-        .new-order-button {
-            background-color: #28a745; /* Green color */
-            color: white;
-            font-weight: bold;
-            font-size: 2rem;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            width: 100%;
-            height: 100%; /* Take full height of its container */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .new-order-button:hover {
-            background-color: #218838;
-        }
+        /* New Order Button Styling */
+        .new-order-button {
+            background-color: #28a745; /* Green color */
+            color: white;
+            font-weight: bold;
+            font-size: 2rem;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+            height: 100%; /* Take full height of its container */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .new-order-button:hover {
+            background-color: #218838;
+        }
 
-        /* Message Box Styling */
-        .message-box-overlay, .admin-login-overlay, .kasse-select-overlay, .live-display-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .message-box, .admin-login-box, .kasse-select-box, .live-display-box {
-            background-color: #333;
-            color: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-            border: 2px solid #555;
-        }
-        .message-box h3, .admin-login-box h3, .kasse-select-box h3, .live-display-box h3 {
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-            color: #ffcc00;
-        }
-        .message-box p, .admin-login-box p, .kasse-select-box p, .live-display-box p {
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-        }
-        .message-box button, .admin-login-box button, .kasse-select-box button, .live-display-box button {
-            background-color: #007bff;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        .message-box button:hover, .admin-login-box button:hover, .kasse-select-box button:hover, .live-display-box button:hover {
-            background-color: #0056b3;
-        }
-        .admin-login-box input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #444;
-            color: white;
-            font-size: 1rem;
-        }
-        .admin-login-box button {
-            margin: 0 10px;
-        }
-        .kasse-select-box .kasse-buttons button {
-            display: block;
-            width: 80%;
-            margin: 1rem auto;
-            font-size: 1.5rem;
-            padding: 1rem;
-            background-color: #28a745;
-            color: white;
-            border-radius: 0.75rem;
-        }
-        .kasse-select-box .kasse-buttons button:hover {
-            background-color: #218838;
-        }
-        .live-display-box input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #444;
-            color: white;
-            font-size: 1rem;
-            text-align: center;
-        }
-
-
-        /* Admin Configuration Panel Specific Styles */
-        .admin-config-panel {
-            grid-template-columns: repeat(2, 1fr);
-            overflow-y: auto;
-        }
-        .admin-config-section {
-            background-color: #3b3b3b;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        .admin-config-section h4 {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            color: #ffcc00;
-        }
-        .admin-config-section input, .admin-config-section select {
-            width: calc(100% - 20px);
-            padding: 8px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #444;
-            color: white;
-        }
-        .admin-config-section button {
-            background-color: #28a745;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            margin-top: 5px;
-            margin-right: 5px;
-        }
-        .admin-config-section button.delete {
-            background-color: #dc3545;
-        }
-        .admin-config-section button:hover {
-            background-color: #218838;
-        }
-        .admin-config-section button.delete:hover {
-            background-color: #c82333;
-        }
-        .admin-config-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #555;
-            border-radius: 5px;
-            padding: 5px;
-            margin-top: 10px;
-        }
-        .admin-config-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px;
-            border-bottom: 1px solid #4a4a4a;
-        }
-        .admin-config-item:last-child {
-            border-bottom: none;
-        }
-        .admin-config-item button {
-            padding: 3px 8px;
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
-
-        /* Admin Main Menu specific styles */
-        .admin-main-menu {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 1.5rem;
-            height: 100%; /* Take full height of right-panel */
-        }
-        .admin-main-menu .menu-button {
-            width: 80%;
-            max-width: 300px;
-            height: 80px;
-            font-size: 1.5rem;
-            background-color: #007bff;
-            color: white;
-            border-radius: 1rem;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .admin-main-menu .menu-button:hover {
-            background-color: #0056b3;
-        }
+        /* Message Box Styling */
+        .message-box-overlay, .admin-login-overlay, .kasse-select-overlay, .live-display-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .message-box, .admin-login-box, .kasse-select-box, .live-display-box {
+            background-color: #333;
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 2px solid #555;
+        }
+        .message-box h3, .admin-login-box h3, .kasse-select-box h3, .live-display-box h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #ffcc00;
+        }
+        .message-box p, .admin-login-box p, .kasse-select-box p, .live-display-box p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+        .message-box button, .admin-login-box button, .kasse-select-box button, .live-display-box button {
+            background-color: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .message-box button:hover, .admin-login-box button:hover, .kasse-select-box button:hover, .live-display-box button:hover {
+            background-color: #0056b3;
+        }
+        .admin-login-box input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+            font-size: 1rem;
+        }
+        .admin-login-box button {
+            margin: 0 10px;
+        }
+        .kasse-select-box .kasse-buttons button {
+            display: block;
+            width: 80%;
+            margin: 1rem auto;
+            font-size: 1.5rem;
+            padding: 1rem;
+            background-color: #28a745;
+            color: white;
+            border-radius: 0.75rem;
+        }
+        .kasse-select-box .kasse-buttons button:hover {
+            background-color: #218838;
+        }
+        .live-display-box input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
 
 
-        /* Wertbon Print Style */
-        @media print {
-            body > *:not(#print-area-temp) { /* Hide everything except the print area */
-                display: none !important;
-            }
-            #print-area-temp {
-                display: block !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 80mm; /* Standard receipt width */
-                padding: 10mm;
-                font-family: 'monospace';
-                font-size: 18px; /* INCREASED FONT SIZE */
-                line-height: 1.4;
-                color: #000;
-                box-sizing: border-box;
-                page-break-after: always; /* Force a page break after each bon */
-            }
-            #print-area-temp:last-child {
-                page-break-after: auto; /* No page break after the very last bon */
-            }
-            #print-area-temp .wertbon-print-area {
-                width: 100%; /* Ensure inner bons take full width of print area */
-                page-break-inside: avoid; /* Avoid breaking individual bons across pages */
-                font-size: inherit; /* Inherit font size from #print-area-temp */
-            }
+        /* Admin Configuration Panel Specific Styles */
+        .admin-config-panel {
+            grid-template-columns: repeat(2, 1fr);
+            overflow-y: auto;
+        }
+        .admin-config-section {
+            background-color: #3b3b3b;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .admin-config-section h4 {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #ffcc00;
+        }
+        .admin-config-section input, .admin-config-section select {
+            width: calc(100% - 20px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+        }
+        .admin-config-section button {
+            background-color: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-top: 5px;
+            margin-right: 5px;
+        }
+        .admin-config-section button.delete {
+            background-color: #dc3545;
+        }
+        .admin-config-section button:hover {
+            background-color: #218838;
+        }
+        .admin-config-section button.delete:hover {
+            background-color: #c82333;
+        }
+        .admin-config-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 5px;
+            margin-top: 10px;
+        }
+        .admin-config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #4a4a4a;
+        }
+        .admin-config-item:last-child {
+            border-bottom: none;
+        }
+        .admin-config-item button {
+            padding: 3px 8px;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
 
-            /* Specific styles for elements within wertbon-print-area when printing */
-            .wertbon-print-area h2,
-            .wertbon-print-area h3 {
-                text-align: center;
-                margin-bottom: 5px;
-                font-size: 1.8em; /* Made H2/H3 larger for better heading visibility */
-            }
-            .wertbon-print-area img {
-                display: block; /* Ensure image is a block element for centering */
-                margin: 0 auto; /* Center image */
-            }
-            .wertbon-print-area p {
-                margin: 5px 0; /* Adjust paragraph margins */
-            }
-            .wertbon-print-area .dashed-line {
-                border-top: 1px dashed #000;
-                margin: 15px 0;
-            }
-            .wertbon-print-area .item-line {
-                font-size: 1.2em;
-                font-weight: bold;
-            }
-            .wertbon-print-area .italic-note {
-                font-style: italic;
-                font-size: 0.9em; /* Smaller for "Bspw." */
-            }
-            .wertbon-print-area .small-note {
-                font-size: 0.9em;
-                margin-top: 10px;
-            }
-            .wertbon-print-area .thank-you {
-                font-size: 1.1em;
-                font-weight: bold;
-                margin-top: 10px;
-            }
-        }
-    </style>
+        /* Admin Main Menu specific styles */
+        .admin-main-menu {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            height: 100%; /* Take full height of right-panel */
+        }
+        .admin-main-menu .menu-button {
+            width: 80%;
+            max-width: 300px;
+            height: 80px;
+            font-size: 1.5rem;
+            background-color: #007bff;
+            color: white;
+            border-radius: 1rem;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .admin-main-menu .menu-button:hover {
+            background-color: #0056b3;
+        }
+
+
+        /* Wertbon Print Style */
+        @media print {
+            body > *:not(#print-area-temp) { /* Hide everything except the print area */
+                display: none !important;
+            }
+            #print-area-temp {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm; /* Standard receipt width */
+                padding: 10mm;
+                font-family: 'monospace';
+                font-size: 12px;
+                line-height: 1.4;
+                color: #000;
+                box-sizing: border-box;
+                page-break-after: always; /* Force a page break after each bon */
+            }
+            #print-area-temp:last-child {
+                page-break-after: auto; /* No page break after the very last bon */
+            }
+            #print-area-temp .wertbon-print-area {
+                width: 100%; /* Ensure inner bons take full width of print area */
+                page-break-inside: avoid; /* Avoid breaking individual bons across pages */
+            }
+
+            /* Specific styles for elements within wertbon-print-area when printing */
+            .wertbon-print-area h2,
+            .wertbon-print-area h3 {
+                text-align: center;
+                margin-bottom: 5px;
+            }
+            .wertbon-print-area img {
+                display: block; /* Ensure image is a block element for centering */
+                margin: 0 auto; /* Center image */
+            }
+            .wertbon-print-area p {
+                margin: 5px 0; /* Adjust paragraph margins */
+            }
+            .wertbon-print-area .dashed-line {
+                border-top: 1px dashed #000;
+                margin: 15px 0;
+            }
+            .wertbon-print-area .item-line {
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+            .wertbon-print-area .italic-note {
+                font-style: italic;
+                font-size: 0.9em; /* Smaller for "Bspw." */
+            }
+            .wertbon-print-area .small-note {
+                font-size: 0.9em;
+                margin-top: 10px;
+            }
+            .wertbon-print-area .thank-you {
+                font-size: 1.1em;
+                font-weight: bold;
+                margin-top: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="pos-container">
-        <div class="header-bar">
-            <div class="flex items-center gap-2">
-                <span class="user-badge" id="cashierBadge">Kasse: Nicht ausgewählt</span>
-                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
-                <button id="liveDisplayLinkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-full text-sm ml-4">Live Display Link</button>
-                <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
-                <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
-                <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <span class="status-item">REG</span>
-                <span class="status-item">RÜCKGELD</span>
-                <span id="changeHeader" class="change-display">€0.00</span>
-                <span id="currentTime" class="status-item"></span>
-                <span id="currentDate" class="status-item"></span>
-            </div>
-        </div>
-
-        <div class="main-content">
-            <div class="left-panel">
-                <div class="order-list-header">
-                    <span class="qty">Menge</span>
-                    <span class="name">Artikel</span>
-                    <span class="price">Preis</span>
-                </div>
-                <div class="order-list-container" id="orderList">
-                    </div>
-                <div class="summary-section">
-                    <div class="summary-item subtotal">
-                        <span>ZWISCHENSUMME</span>
-                        <span id="subtotalAmount">€0.00</span>
-                    </div>
-                    <div class="summary-item total">
-                        <span>TOTAL</span>
-                        <span id="totalAmount">€0.00</span>
-                    </div>
-                    <div class="summary-item cash">
-                        <span>BAR</span>
-                        <span id="cashAmount">€0.00</span>
-                    </div>
-                    <div class="summary-item change">
-                        <span>RÜCKGELD</span>
-                        <span id="changeAmount">€0.00</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="right-panel" id="rightPanel">
-                <div id="loadingMessage" class="col-span-4 text-center text-gray-400 text-lg hidden">Lade Daten...</div>
-            </div>
-        </div>
-
-        <div class="bottom-panel-container">
-            <div class="input-display-area">
-                <div id="inputDisplay" class="input-display-line"></div>
-                <button id="clearInputButton" class="clear-input-button">C</button>
-            </div>
-            
-            <div id="keypadArea" class="bottom-panel">
-                <button class="num-button" data-input="7">7</button>
-                <button class="num-button" data-input="8">8</button>
-                <button class="num-button" data-input="9">9</button>
-                <button class="num-button" data-input="0">0</button>
-                <button class="action-button yellow-func" data-input="X">X</button>
-
-                <button class="num-button" data-input="4">4</button>
-                <button class="num-button" data-input="5">5</button>
-                <button class="num-button" data-input="6">6</button>
-                <button class="num-button" data-input="00">00</button>
-                <button class="action-button purple-func" data-action="function" data-function="zws">ZWS</button>
-
-                <button class="num-button" data-input="1">1</button>
-                <button class="num-button" data-input="2">2</button>
-                <button class="num-button" data-input="3">3</button>
-                <button class="num-button decimal" data-input=".">,</button>
-                <button class="action-button bar-func" data-action="function" data-function="bar">BAR</button>
-            </div>
-
-            <div id="newOrderArea" class="hidden" style="height: calc(100% - 2.5rem - 0.7rem);">
-                <button id="newOrderButton" class="new-order-button">NEUE BESTELLUNG</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="messageBoxOverlay" class="message-box-overlay hidden">
-        <div class="message-box">
-            <h3 id="messageBoxTitle">Nachricht</h3>
-            <p id="messageBoxContent"></p>
-            <button id="messageBoxClose">OK</button>
-        </div>
-    </div>
-
-    <div id="adminLoginOverlay" class="admin-login-overlay hidden">
-        <div class="admin-login-box">
-            <h3>Admin Login</h3>
-            <input type="text" id="adminUsername" placeholder="Benutzername" value="admin">
-            <input type="password" id="adminPassword" placeholder="Passwort" value="admin123">
-            <button id="loginBtn">Login</button>
-            <button id="cancelLoginBtn">Abbrechen</button>
-        </div>
-    </div>
-
-    <div id="kasseSelectOverlay" class="kasse-select-overlay">
-        <div class="kasse-select-box">
-            <h3>Kasse auswählen</h3>
-            <p>Bitte wählen Sie Ihre Kasse aus:</p>
-            <div class="kasse-buttons">
-                <button data-kasse-id="Kasse1">Kasse 1</button>
-                <button data-kasse-id="Kasse2">Kasse 2</button>
-                <button data-kasse-id="Kasse3">Kasse 3</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="liveDisplayOverlay" class="live-display-overlay hidden">
-        <div class="live-display-box">
-            <h3>Live Display Link</h3>
-            <p>Öffne diesen Link auf dem zweiten iPad:</p>
-            <input type="text" id="liveDisplayUrl" readonly>
-            <button id="copyLiveDisplayUrlBtn">Link kopieren</button>
-            <button id="closeLiveDisplayBtn">Schließen</button>
-        </div>
-    </div>
-
-    <script type="module">
-        // Firebase imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // Import addDoc and serverTimestamp for adding new documents with auto-generated IDs
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase app and services
-        let app;
-        let db;
-        let auth;
-        let userId = 'anonymous'; // Default to anonymous until authenticated
-        let selectedKasseId = localStorage.getItem('selectedKasseId'); // Retrieve Kasse ID from local storage
-        let selectedKasseName = localStorage.getItem('selectedKasseName'); // Retrieve Kasse Name from local storage
-
-        // Firebase Configuration - REPLACE with your actual Firebase project config
-        const firebaseConfig = {
-          apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
-          authDomain: "verkaufssoftware.firebaseapp.com",
-          projectId: "verkaufssoftware",
-          storageBucket: "verkaufssoftware.firebaseapp.com",
-          messagingSenderId: "268747007466",
-          appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
-          measurementId: "G-RMX5KJK543"
-        };
-        // For GitHub deployment, use your projectId as appId
-        const projectId = firebaseConfig.projectId; // Use projectId for the appId
-
-        // DOM Elements
-        const orderList = document.getElementById('orderList');
-        const subtotalAmount = document.getElementById('subtotalAmount');
-        const totalAmount = document.getElementById('totalAmount');
-        const cashAmount = document.getElementById('cashAmount');
-        const changeAmount = document.getElementById('changeAmount');
-        const changeHeader = document.getElementById('changeHeader');
-        const currentDateElem = document.getElementById('currentDate');
-        const currentTimeElem = document.getElementById('currentTime');
-        const displayUserId = document.getElementById('displayUserId');    
-        const cashierBadge = document.getElementById('cashierBadge'); // Kasse display
-
-        const messageBoxOverlay = document.getElementById('messageBoxOverlay');
-        const messageBoxTitle = document.getElementById('messageBoxTitle');
-        const messageBoxContent = document.getElementById('messageBoxContent');
-        const messageBoxClose = document.getElementById('messageBoxClose');
-
-        const adminLoginBtn = document.getElementById('adminLoginBtn');
-        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
-        const adminModeStatus = document.getElementById('adminModeStatus');
-        const adminLoginOverlay = document.getElementById('adminLoginOverlay');
-        const adminUsernameInput = document.getElementById('adminUsername');
-        const adminPasswordInput = document.getElementById('adminPassword');
-        const loginBtn = document.getElementById('loginBtn');
-        const cancelLoginBtn = document.getElementById('cancelLoginBtn');    
-
-        const kasseSelectOverlay = document.getElementById('kasseSelectOverlay'); // Kasse select modal
-        const kasseButtons = kasseSelectOverlay.querySelector('.kasse-buttons'); // Container for Kasse buttons
-
-        const rightPanel = document.getElementById('rightPanel');
-        const inputDisplay = document.getElementById('inputDisplay'); // Input display element
-        const clearInputButton = document.getElementById('clearInputButton'); // New C button
-
-        const keypadArea = document.getElementById('keypadArea'); // Numeric keypad and function buttons area
-        const newOrderArea = document.getElementById('newOrderArea'); // "Neue Bestellung" button area
-        const newOrderButton = document.getElementById('newOrderButton'); // The "Neue Bestellung" button
-
-        // Live Display Elements
-        const liveDisplayLinkBtn = document.getElementById('liveDisplayLinkBtn');
-        const liveDisplayOverlay = document.getElementById('liveDisplayOverlay');
-        const liveDisplayUrlInput = document.getElementById('liveDisplayUrl');
-        const copyLiveDisplayUrlBtn = document.getElementById('copyLiveDisplayUrlBtn');
-        const closeLiveDisplayBtn = document.getElementById('closeLiveDisplayBtn');
-        const loadingMessage = document.getElementById('loadingMessage'); // Loading message
-
-
-        // State variables
-        let currentOrder = [];
-        let multiplier = 1;
-        let currentInput = '0.00'; // Initialize with "0.00"
-        let cashGiven = 0;
-        let isAdminMode = false;
-        let currentCategory = null; // Stores the currently selected category for product display
-        let currentAdminView = 'main'; // Tracks the current admin view: 'main', 'categories', 'products', 'sellers'
-
-        // POS Data (now dynamically loaded from Firebase)
-        let posData = {
-            "categories": [],
-            "products": {}, // Products will be grouped by category ID in this object
-            "sellers": [] // New: Array to store seller data
-        };
-
-        // State to track if Firestore listeners have been set up
-        let firestoreListenersSetup = false;
-
-        // --- Firebase Initialization and Auth ---
-        async function initializeFirebase() {
-            try {
-                // Check if firebaseConfig is valid
-                if (!firebaseConfig || Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
-                    console.error("Firebase Configuration is missing or invalid. Please check firebaseConfig object.");
-                    showMessage('Fehler', 'Firebase Konfiguration fehlt oder ist ungültig. Bitte den Code überprüfen.');
-                    return; // Stop execution if config is bad
-                }
-
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                console.log("Firebase initialized.");
-
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
-                        console.log("User authenticated. Current userId:", userId);
-                        
-                        // Check if a Kasse was previously selected
-                        if (selectedKasseId && selectedKasseName) {
-                            cashierBadge.textContent = `Kasse: ${selectedKasseName}`;
-                            kasseSelectOverlay.classList.add('hidden'); // Hide selection if already chosen
-                            if (!firestoreListenersSetup) {
-                                console.log("Authentication successful, Kasse already selected, calling setupFirestoreListeners.");
-                                setupFirestoreListeners();
-                            }
-                        } else {
-                            // If no Kasse selected, show the selection modal
-                            kasseSelectOverlay.classList.remove('hidden');
-                        }
-                    } else {
-                        // User is signed out, try to sign in anonymously
-                        console.log("No user found, attempting anonymous sign-in.");
-                        try {
-                            await signInAnonymously(auth);
-                            console.log("Signed in anonymously.");
-                        } catch (error) {
-                            console.error("Error signing in anonymously:", error);
-                            showMessage('Fehler', 'Anonyme Anmeldung fehlgeschlagen: ' + error.message);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Failed to initialize Firebase:", error);
-                showMessage('Initialisierungsfehler', 'Firebase konnte nicht initialisiert werden: ' + error.message);
-            }
-        }
-
-        // Call initialization as soon as the DOM is ready
-        document.addEventListener('DOMContentLoaded', initializeFirebase);
-
-
-        // --- UI Update Functions ---
-        function updateDateTime() {
-            const now = new Date();
-            const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-            const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
-            currentDateElem.textContent = now.toLocaleDateString('de-DE', dateOptions).replace('.', ''); // Remove dot after month
-            currentTimeElem.textContent = now.toLocaleTimeString('de-DE', timeOptions);
-        }
-
-        setInterval(updateDateTime, 1000); // Update time every second
-        updateDateTime(); // Initial call
-
-        function updateOrderDisplay() {
-            orderList.innerHTML = '';
-            let currentSubtotal = 0;
-
-            if (currentOrder.length === 0) {
-                orderList.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Artikel im Warenkorb</div>';
-                subtotalAmount.textContent = '€0.00';
-                totalAmount.textContent = '€0.00';
-                cashAmount.textContent = '€0.00';
-                changeAmount.textContent = '€0.00';
-                changeHeader.textContent = '€0.00';
-                return;
-            }
-
-            currentOrder.forEach((item, index) => {
-                const itemElement = document.createElement('div');
-                itemElement.classList.add('order-item', 'hover:bg-gray-700', 'rounded');
-                itemElement.innerHTML = `
-                    <span class="qty">${item.qty}x</span>
-                    <span class="name">${item.name}</span>
-                    <span class="price">€${item.total.toFixed(2)}</span>
-                `;
-                itemElement.dataset.index = index; // Store index for easy removal
-                orderList.appendChild(itemElement);
-                currentSubtotal += item.total;
-            });
-
-            subtotalAmount.textContent = `€${currentSubtotal.toFixed(2)}`;
-            totalAmount.textContent = `€${currentSubtotal.toFixed(2)}`; // Initially total is subtotal
-            updateCashAndChange(); // Update cash and change displays
-        }
-
-        function updateCashAndChange() {
-            const total = parseFloat(totalAmount.textContent.replace('€', ''));
-            const change = cashGiven - total;
-            
-            cashAmount.textContent = `€${cashGiven.toFixed(2)}`;
-            changeAmount.textContent = `€${Math.max(0, change).toFixed(2)}`;
-            changeHeader.textContent = `€${Math.max(0, change).toFixed(2)}`; // Update header change display
-        }
-
-        function updateInputDisplay(value) {
-            inputDisplay.textContent = value;
-        }
-
-        function showMessage(title, message) {
-            messageBoxTitle.textContent = title;
-            messageBoxContent.textContent = message;
-            messageBoxOverlay.classList.remove('hidden');
-        }
-
-        // --- Event Listeners for POS System ---
-
-        // Kasse Selection
-        kasseButtons.addEventListener('click', (event) => {
-            const button = event.target.closest('button');
-            if (button) {
-                selectedKasseId = button.dataset.kasseId;
-                selectedKasseName = button.textContent;
-                localStorage.setItem('selectedKasseId', selectedKasseId); // Save to local storage
-                localStorage.setItem('selectedKasseName', selectedKasseName); // Save name too
-                cashierBadge.textContent = `Kasse: ${selectedKasseName}`;
-                kasseSelectOverlay.classList.add('hidden'); // Hide the modal
-                console.log(`Kasse selected: ${selectedKasseId}`);
-                if (!firestoreListenersSetup) {
-                    setupFirestoreListeners(); // Setup listeners after Kasse is selected
-                }
-            }
-        });
-
-        messageBoxClose.addEventListener('click', () => {
-            messageBoxOverlay.classList.add('hidden');
-        });
-
-        // Numeric Keypad and Action Buttons
-        document.querySelectorAll('.num-button, .action-button').forEach(button => {
-            button.addEventListener('click', () => {
-                const inputVal = button.dataset.input;
-                const action = button.dataset.action;
-                const func = button.dataset.function;
-
-                if (inputVal) {
-                    handleNumericInput(inputVal);
-                } else if (action === 'function') {
-                    handleFunction(func);
-                }
-            });
-        });
-
-        clearInputButton.addEventListener('click', () => {
-            currentInput = '0.00';
-            multiplier = 1;
-            updateInputDisplay(formatCurrency(0));
-        });
-
-        orderList.addEventListener('click', (event) => {
-            const itemElement = event.target.closest('.order-item');
-            if (itemElement) {
-                const index = parseInt(itemElement.dataset.index);
-                if (!isNaN(index) && index >= 0 && index < currentOrder.length) {
-                    currentOrder.splice(index, 1); // Remove item
-                    updateOrderDisplay();
-                }
-            }
-        });
-
-        newOrderButton.addEventListener('click', () => {
-            startNewOrder();
-        });
-
-        // Live Display Link button
-        liveDisplayLinkBtn.addEventListener('click', () => {
-            if (projectId && selectedKasseId) {
-                const liveDisplayUrl = `${window.location.origin}/live_display.html?kasse=${selectedKasseId}&project=${projectId}`;
-                liveDisplayUrlInput.value = liveDisplayUrl;
-                liveDisplayOverlay.classList.remove('hidden');
-            } else {
-                showMessage('Fehler', 'Bitte zuerst eine Kasse auswählen und Firebase Project ID prüfen.');
-            }
-        });
-
-        copyLiveDisplayUrlBtn.addEventListener('click', () => {
-            liveDisplayUrlInput.select();
-            document.execCommand('copy');
-            showMessage('Kopiert!', 'Link wurde in die Zwischenablage kopiert.');
-        });
-
-        closeLiveDisplayBtn.addEventListener('click', () => {
-            liveDisplayOverlay.classList.add('hidden');
-        });
-
-        // Admin Login/Logout
-        adminLoginBtn.addEventListener('click', () => {
-            adminLoginOverlay.classList.remove('hidden');
-        });
-
-        cancelLoginBtn.addEventListener('click', () => {
-            adminLoginOverlay.classList.add('hidden');
-            adminUsernameInput.value = 'admin'; // Reset for next time
-            adminPasswordInput.value = 'admin123'; // Reset for next time
-        });
-
-        loginBtn.addEventListener('click', async () => {
-            const username = adminUsernameInput.value;
-            const password = adminPasswordInput.value;
-
-            // Simple hardcoded admin check for demonstration.
-            // In a real app, you'd verify against a database.
-            if (username === 'admin' && password === 'admin123') {
-                isAdminMode = true;
-                adminLoginOverlay.classList.add('hidden');
-                adminLoginBtn.classList.add('hidden');
-                adminLogoutBtn.classList.remove('hidden');
-                adminModeStatus.classList.remove('hidden');
-                showMessage('Admin-Modus', 'Sie sind jetzt im Admin-Modus.');
-                renderAdminMainMenu(); // Show admin menu
-            } else {
-                showMessage('Login Fehlgeschlagen', 'Falscher Benutzername oder Passwort.');
-            }
-        });
-
-        adminLogoutBtn.addEventListener('click', () => {
-            isAdminMode = false;
-            adminLoginBtn.classList.remove('hidden');
-            adminLogoutBtn.classList.add('hidden');
-            adminModeStatus.classList.add('hidden');
-            showMessage('Admin-Modus', 'Sie haben den Admin-Modus verlassen.');
-            renderCategories(); // Go back to normal product view
-        });
-
-
-        // --- Core Logic Functions ---
-
-        function handleNumericInput(value) {
-            // Allow initial '0.00' to be replaced by a number, but keep it if adding decimals
-            if (currentInput === '0.00' && value !== '.') {
-                currentInput = value;
-            } else if (value === '.') {
-                // Ensure only one decimal point
-                if (!currentInput.includes('.')) {
-                    currentInput += value;
-                }
-            } else {
-                currentInput += value;
-            }
-            updateInputDisplay(currentInput);
-        }
-
-        function handleFunction(func) {
-            // Replace comma with dot for parseFloat to work correctly
-            const inputValue = parseFloat(currentInput.replace(',', '.')); 
-            if (isNaN(inputValue)) {
-                showMessage('Fehler', 'Ungültige Eingabe.');
-                return;
-            }
-
-            switch (func) {
-                case 'X':
-                    multiplier = inputValue;
-                    updateInputDisplay(formatCurrency(0)); // Clear input after setting multiplier
-                    currentInput = '0.00'; // Reset input for next item price
-                    break;
-                case 'zws': // Zwischensumme / Pay with exact amount
-                    cashGiven = parseFloat(totalAmount.textContent.replace('€', ''));
-                    updateCashAndChange();
-                    currentInput = '0.00';
-                    multiplier = 1;
-                    updateInputDisplay(formatCurrency(0));
-                    break;
-                case 'bar': // Cash payment
-                    cashGiven = inputValue;
-                    updateCashAndChange();
-                    processPayment();
-                    break;
-                default:
-                    console.warn('Unknown function:', func);
-            }
-        }
-
-        function formatCurrency(amount) {
-            // Ensure amount is a number and format to 2 decimal places with comma
-            return `€${parseFloat(amount).toFixed(2).replace('.', ',')}`; 
-        }
-
-        function processPayment() {
-            const total = parseFloat(totalAmount.textContent.replace('€', '').replace(',', '.')); // Handle comma in total
-            const change = cashGiven - total;
-
-            if (cashGiven < total) {
-                showMessage('Fehler', `Betrag zu niedrig. Benötigt: ${formatCurrency(total - cashGiven)} mehr.`);
-                return;
-            }
-
-            showMessage('Zahlung erfolgreich', `Gesamt: ${formatCurrency(total)}<br>Bar: ${formatCurrency(cashGiven)}<br>Rückgeld: ${formatCurrency(change)}`);
-            printReceipt(); // Trigger printing
-            // The call to startNewOrder() is moved into the setTimeout in printReceipt()
-            // to ensure it happens AFTER the print dialog is handled.
-            showNewOrderButton();
-        }
-
-        function showNewOrderButton() {
-            keypadArea.classList.add('hidden');
-            newOrderArea.classList.remove('hidden');
-        }
-
-        function hideNewOrderButton() {
-            keypadArea.classList.remove('hidden');
-            newOrderArea.classList.add('hidden');
-        }
-
-        function startNewOrder() {
-            currentOrder = [];
-            multiplier = 1;
-            currentInput = '0.00';
-            cashGiven = 0;
-            updateOrderDisplay();
-            updateInputDisplay(formatCurrency(0));
-            hideNewOrderButton();
-        }
-
-        // --- Firebase Data Handling ---
-        async function setupFirestoreListeners() {
-            if (firestoreListenersSetup || !selectedKasseId) {
-                console.log("Firestore listeners already setup or Kasse not selected. Skipping setup.");
-                return;
-            }
-            firestoreListenersSetup = true;
-            loadingMessage.classList.remove('hidden'); // Show loading message
-            rightPanel.innerHTML = ''; // Clear existing content
-
-            console.log(`Setting up listeners for Kasse: ${selectedKasseId}`);
-
-            // Listen for categories
-            onSnapshot(collection(db, `kassen/${selectedKasseId}/categories`), (snapshot) => {
-                console.log("Categories snapshot received.");
-                posData.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                posData.categories.sort((a, b) => (a.order || 0) - (b.order || 0)); // Sort by order
-                console.log("Categories loaded:", posData.categories);
-                if (!isAdminMode) {
-                    renderCategories();
-                } else {
-                    if (currentAdminView === 'categories') {
-                        renderAdminCategories();
-                    } else if (currentAdminView === 'products' && currentCategory) { // Update if viewing products of a specific category
-                        renderAdminProducts(currentCategory.id);
-                    } else if (currentAdminView === 'products') { // If in product selection view
-                        renderAdminProductsSelection();
-                    }
-                }
-                loadingMessage.classList.add('hidden'); // Hide loading message
-            }, (error) => {
-                console.error("Error fetching categories:", error);
-                showMessage('Datenfehler', 'Kategorien konnten nicht geladen werden: ' + error.message);
-                loadingMessage.classList.add('hidden'); // Hide loading message on error
-            });
-
-            // Listen for products for the selected Kasse
-            onSnapshot(collection(db, `kassen/${selectedKasseId}/products`), (snapshot) => {
-                console.log("Products snapshot received.");
-                posData.products = {}; // Clear existing products
-                snapshot.docs.forEach(doc => {
-                    const product = { id: doc.id, ...doc.data() };
-                    if (!posData.products[product.categoryId]) {
-                        posData.products[product.categoryId] = [];
-                    }
-                    posData.products[product.categoryId].push(product);
-                });
-                // Sort products within each category
-                for (const categoryId in posData.products) {
-                    posData.products[categoryId].sort((a, b) => (a.order || 0) - (b.order || 0));
-                }
-                console.log("Products loaded:", posData.products);
-                if (!isAdminMode) {
-                    if (currentCategory) {
-                        renderProducts(currentCategory.id); // Re-render products for current category
-                    } else {
-                        renderCategories(); // Go back to categories if no category selected
-                    }
-                } else {
-                    if (currentAdminView === 'products' && currentCategory) {
-                        renderAdminProducts(currentCategory.id);
-                    } else if (currentAdminView === 'products') {
-                        renderAdminProductsSelection();
-                    }
-                }
-                loadingMessage.classList.add('hidden'); // Hide loading message
-            }, (error) => {
-                console.error("Error fetching products:", error);
-                showMessage('Datenfehler', 'Produkte konnten nicht geladen werden: ' + error.message);
-                loadingMessage.classList.add('hidden'); // Hide loading message on error
-            });
-
-            // Listen for sellers
-            onSnapshot(collection(db, `kassen/${selectedKasseId}/sellers`), (snapshot) => {
-                console.log("Sellers snapshot received.");
-                posData.sellers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                posData.sellers.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
-                console.log("Sellers loaded:", posData.sellers);
-                if (isAdminMode && currentAdminView === 'sellers') {
-                    renderAdminSellers();
-                }
-            }, (error) => {
-                console.error("Error fetching sellers:", error);
-                showMessage('Datenfehler', 'Verkäufer konnten nicht geladen werden: ' + error.message);
-            });
-
-            // Ensure initial rendering if data is already there or for fresh load
-            if (!isAdminMode && posData.categories.length > 0) {
-                renderCategories();
-            }
-        }
-
-        async function addCategory(name, color) {
-            try {
-                // Use a proper document ID (e.g., lowercase name, replace spaces, or let Firebase generate)
-                // For simplicity, let's use the name as ID for now, but be aware of duplicates/invalid chars
-                const docRef = doc(db, `kassen/${selectedKasseId}/categories`, name); 
-                await setDoc(docRef, { 
-                    name: name, 
-                    color: color, 
-                    order: Date.now() // Simple ordering, can be improved
-                });
-                showMessage('Erfolg', `Kategorie "${name}" hinzugefügt.`);
-            } catch (e) {
-                console.error("Error adding category: ", e);
-                showMessage('Fehler', 'Kategorie konnte nicht hinzugefügt werden: ' + e.message);
-            }
-        }
-
-        async function deleteCategory(categoryId) {
-            if (confirm(`Sind Sie sicher, dass Sie die Kategorie "${categoryId}" und ALLE zugehörigen Produkte löschen möchten?`)) {
-                try {
-                    // Delete all products in this category first
-                    const productsRef = collection(db, `kassen/${selectedKasseId}/products`);
-                    const q = query(productsRef, where("categoryId", "==", categoryId));
-                    const querySnapshot = await getDocs(q);
-                    const deletePromises = [];
-                    querySnapshot.forEach((doc) => {
-                        deletePromises.push(deleteDoc(doc.ref));
-                    });
-                    await Promise.all(deletePromises);
-
-                    // Then delete the category itself
-                    await deleteDoc(doc(db, `kassen/${selectedKasseId}/categories`, categoryId));
-                    showMessage('Erfolg', `Kategorie "${categoryId}" und zugehörige Produkte gelöscht.`);
-                    currentCategory = null; // Reset selected category if deleted
-                } catch (e) {
-                    console.error("Error deleting category: ", e);
-                    showMessage('Fehler', 'Kategorie konnte nicht gelöscht werden: ' + e.message);
-                }
-            }
-        }
-
-        async function addProduct(categoryId, name, price) {
-            try {
-                // Use addDoc to let Firestore generate a unique ID for the product
-                const productsCollectionRef = collection(db, `kassen/${selectedKasseId}/products`);
-                await addDoc(productsCollectionRef, {
-                    categoryId: categoryId,
-                    name: name,
-                    price: parseFloat(price),
-                    order: Date.now() // Simple ordering
-                });
-                showMessage('Erfolg', `Produkt "${name}" hinzugefügt.`);
-            } catch (e) {
-                console.error("Error adding product: ", e);
-                showMessage('Fehler', 'Produkt konnte nicht hinzugefügt werden: ' + e.message);
-            }
-        }
-
-        async function deleteProduct(productId) {
-            if (confirm(`Sind Sie sicher, dass Sie das Produkt löschen möchten?`)) { // Removed productId from confirm as it's the Firebase generated ID
-                try {
-                    await deleteDoc(doc(db, `kassen/${selectedKasseId}/products`, productId));
-                    showMessage('Erfolg', `Produkt gelöscht.`);
-                } catch (e) {
-                    console.error("Error deleting product: ", e);
-                    showMessage('Fehler', 'Produkt konnte nicht gelöscht werden: ' + e.message);
-                }
-            }
-        }
-
-        async function addSeller(name) {
-            try {
-                await setDoc(doc(db, `kassen/${selectedKasseId}/sellers`, name), { name: name }); // Ensure name is passed as object
-                showMessage('Erfolg', `Verkäufer "${name}" hinzugefügt.`);
-            } catch (e) {
-                console.error("Error adding seller: ", e);
-                showMessage('Fehler', 'Verkäufer konnte nicht hinzugefügt werden: ' + e.message);
-            }
-        }
-
-        async function deleteSeller(sellerId) {
-            if (confirm(`Sind Sie sicher, dass Sie den Verkäufer "${sellerId}" löschen möchten?`)) {
-                try {
-                    await deleteDoc(doc(db, `kassen/${selectedKasseId}/sellers`, sellerId));
-                    showMessage('Erfolg', `Verkäufer "${sellerId}" gelöscht.`);
-                } catch (e) {
-                    console.error("Error deleting seller: ", e);
-                    showMessage('Fehler', 'Verkäufer konnte nicht gelöscht werden: ' + e.message);
-                }
-            }
-        }
-
-        // Function to record sale (for analytics/history)
-        async function recordSale(orderItems, totalAmount, cashPaid, changeGiven) {
-            if (!selectedKasseId) {
-                console.error("Cannot record sale: Kasse not selected.");
-                return;
-            }
-            try {
-                const salesRef = collection(db, `kassen/${selectedKasseId}/sales`);
-                await addDoc(salesRef, { // Use addDoc to auto-generate sale ID
-                    timestamp: serverTimestamp(), // Use server timestamp for consistency
-                    cashierId: userId,
-                    kasseId: selectedKasseId,
-                    items: orderItems,
-                    total: totalAmount,
-                    cashPaid: cashPaid,
-                    change: changeGiven
-                });
-                console.log("Sale recorded successfully.");
-            } catch (e) {
-                console.error("Error recording sale: ", e);
-                showMessage('Fehler', 'Verkauf konnte nicht gespeichert werden: ' + e.message);
-            }
-        }
-
-
-        // --- Rendering Functions for Right Panel ---
-
-        function renderCategories() {
-            if (isAdminMode) return; // Don't render categories in admin mode
-            rightPanel.innerHTML = '';
-            // If there are no categories, show a message
-            if (posData.categories.length === 0) {
-                rightPanel.innerHTML = '<div class="col-span-4 text-center text-gray-500 pt-4">Keine Kategorien gefunden.<br>Fügen Sie welche im Admin-Modus hinzu.</div>';
-                return;
-            }
-            posData.categories.forEach(category => {
-                const categoryButton = document.createElement('button');
-                categoryButton.classList.add('product-button', category.color || 'gray');
-                categoryButton.textContent = category.name;
-                categoryButton.addEventListener('click', () => {
-                    currentCategory = category;
-                    renderProducts(category.id);
-                });
-                rightPanel.appendChild(categoryButton);
-            });
-        }
-
-        function renderProducts(categoryId) {
-            if (isAdminMode) return; // Don't render products in admin mode
-            rightPanel.innerHTML = '';
-
-            // Add a "Back to Categories" button
-            const backButton = document.createElement('button');
-            backButton.classList.add('product-button', 'bg-blue-600');
-            backButton.textContent = '← Kategorien';
-            backButton.addEventListener('click', () => {
-                currentCategory = null;
-                renderCategories();
-            });
-            rightPanel.appendChild(backButton);
-
-            const productsInThisCategory = posData.products[categoryId] || [];
-            if (productsInThisCategory.length === 0) {
-                const noProductsMessage = document.createElement('div');
-                noProductsMessage.classList.add('col-span-3', 'text-center', 'text-gray-500', 'pt-4');
-                noProductsMessage.textContent = 'Keine Produkte in dieser Kategorie.';
-                rightPanel.appendChild(noProductsMessage);
-            } else {
-                productsInThisCategory.forEach(product => {
-                    const productButton = document.createElement('button');
-                    productButton.classList.add('product-button', posData.categories.find(c => c.id === product.categoryId)?.color || 'gray');
-                    productButton.innerHTML = `${product.name}<br>${formatCurrency(product.price)}`;
-                    productButton.addEventListener('click', () => addOrderItem(product));
-                    rightPanel.appendChild(productButton);
-                });
-            }
-        }
-
-        function addOrderItem(product) {
-            const existingItemIndex = currentOrder.findIndex(item => item.id === product.id);
-
-            if (existingItemIndex > -1) {
-                currentOrder[existingItemIndex].qty += multiplier;
-                currentOrder[existingItemIndex].total = currentOrder[existingItemIndex].qty * currentOrder[existingItemIndex].price;
-            } else {
-                currentOrder.push({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    qty: multiplier,
-                    total: multiplier * product.price
-                });
-            }
-            multiplier = 1; // Reset multiplier after adding item
-            currentInput = '0.00'; // Reset input after adding item
-            updateInputDisplay(formatCurrency(0));
-            updateOrderDisplay();
-        }
-
-        // --- Admin Panel Rendering ---
-        function renderAdminMainMenu() {
-            rightPanel.innerHTML = `
-                <div class="admin-main-menu col-span-4">
-                    <button class="menu-button" data-admin-view="categories">Kategorien verwalten</button>
-                    <button class="menu-button" data-admin-view="products">Produkte verwalten</button>
-                    <button class="menu-button" data-admin-view="sellers">Verkäufer verwalten</button>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700" data-admin-view="back-to-pos">Zurück zum POS</button>
-                </div>
-            `;
-            rightPanel.classList.remove('grid'); // Remove grid for main menu layout
-            rightPanel.classList.add('flex', 'flex-col', 'items-center', 'justify-center'); // Use flexbox for centering
-
-            document.querySelectorAll('.admin-main-menu .menu-button').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const view = event.target.dataset.adminView;
-                    currentAdminView = view;
-                    rightPanel.classList.add('grid'); // Re-add grid for specific admin views
-                    rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center'); // Remove flexbox
-                    switch (view) {
-                        case 'categories':
-                            renderAdminCategories();
-                            break;
-                        case 'products':
-                            renderAdminProductsSelection(); // Shows categories to pick from
-                            break;
-                        case 'sellers':
-                            renderAdminSellers();
-                            break;
-                        case 'back-to-pos':
-                            isAdminMode = false; // Exit admin mode
-                            adminLoginBtn.classList.remove('hidden');
-                            adminLogoutBtn.classList.add('hidden');
-                            adminModeStatus.classList.add('hidden');
-                            renderCategories(); // Go back to normal POS view
-                            break;
-                    }
-                });
-            });
-        }
-
-        function renderAdminCategories() {
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4">
-                    <div class="admin-config-section">
-                        <h4>Kategorie hinzufügen</h4>
-                        <input type="text" id="newCategoryName" placeholder="Kategoriename">
-                        <select id="newCategoryColor">
-                            <option value="gray">Standard (Grau)</option>
-                            <option value="yellow">Gelb</option>
-                            <option value="orange">Orange</option>
-                            <option value="purple">Lila</option>
-                            <option value="green">Grün</option>
-                            <option value="blue">Blau</option>
-                            <option value="red">Rot</option>
-                            <option value="light-blue">Hellblau</option>
-                            <option value="pink">Pink</option>
-                        </select>
-                        <button id="addCategoryBtn">Hinzufügen</button>
-                    </div>
-                    <div class="admin-config-section">
-                        <h4>Bestehende Kategorien</h4>
-                        <div class="admin-config-list" id="categoryListAdmin">
-                            </div>
-                    </div>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-view="main-menu">Zurück zum Admin Menü</button>
-                </div>
-            `;
-            rightPanel.classList.add('grid'); // Ensure grid layout for admin panels
-            rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center'); // Remove flexbox
-
-            const categoryListAdmin = document.getElementById('categoryListAdmin');
-            if (posData.categories.length === 0) {
-                categoryListAdmin.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Kategorien vorhanden.</div>';
-            } else {
-                posData.categories.forEach(category => {
-                    const item = document.createElement('div');
-                    item.classList.add('admin-config-item');
-                    item.innerHTML = `
-                        <span>${category.name} (${category.color})</span>
-                        <div>
-                            <button class="delete" data-id="${category.id}">Löschen</button>
-                        </div>
-                    `;
-                    categoryListAdmin.appendChild(item);
-                });
-            }
-
-            document.getElementById('addCategoryBtn').addEventListener('click', () => {
-                const name = document.getElementById('newCategoryName').value.trim(); // Trim whitespace
-                const color = document.getElementById('newCategoryColor').value;
-                if (name) {
-                    addCategory(name, color);
-                    document.getElementById('newCategoryName').value = ''; // Clear input
-                } else {
-                    showMessage('Eingabefehler', 'Bitte geben Sie einen Kategorienamen ein.');
-                }
-            });
-
-            categoryListAdmin.addEventListener('click', (event) => {
-                if (event.target.classList.contains('delete')) {
-                    deleteCategory(event.target.dataset.id);
-                }
-            });
-
-            // Back button listener (for "Zurück zum Admin Menü")
-            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
-                currentAdminView = 'main';
-                renderAdminMainMenu();
-            });
-        }
-
-        function renderAdminProductsSelection() {
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4">
-                    <h4 class="col-span-4 text-center">Produkte verwalten - Kategorie auswählen</h4>
-                    <div class="grid grid-cols-4 gap-3 admin-config-list p-2" id="productCategorySelectionList">
-                        </div>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-view="main-menu">Zurück zum Admin Menü</button>
-                </div>
-            `;
-            rightPanel.classList.add('grid');
-            rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
-
-            const productCategorySelectionList = document.getElementById('productCategorySelectionList');
-            if (posData.categories.length === 0) {
-                productCategorySelectionList.innerHTML = '<div class="col-span-4 text-center text-gray-500 pt-4">Zuerst Kategorien im "Kategorien verwalten"-Bereich hinzufügen.</div>';
-            } else {
-                posData.categories.forEach(category => {
-                    const categoryButton = document.createElement('button');
-                    categoryButton.classList.add('product-button', category.color || 'gray'); // Reusing product-button styles
-                    categoryButton.textContent = category.name;
-                    categoryButton.addEventListener('click', () => {
-                        currentCategory = category; // Set current category for product management
-                        renderAdminProducts(category.id);
-                    });
-                    productCategorySelectionList.appendChild(categoryButton);
-                });
-            }
-
-            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
-                currentAdminView = 'main';
-                renderAdminMainMenu();
-            });
-        }
-
-
-        function renderAdminProducts(categoryId) {
-            const category = posData.categories.find(c => c.id === categoryId);
-            if (!category) {
-                showMessage('Fehler', 'Kategorie nicht gefunden.');
-                renderAdminProductsSelection(); // Go back to category selection
-                return;
-            }
-
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4">
-                    <h4>Produkte in "${category.name}" verwalten</h4>
-                    <div class="admin-config-section">
-                        <h4>Produkt hinzufügen</h4>
-                        <input type="text" id="newProductName" placeholder="Produktname">
-                        <input type="number" step="0.01" id="newProductPrice" placeholder="Preis (z.B. 2.50)">
-                        <button id="addProductBtn">Hinzufügen</button>
-                    </div>
-                    <div class="admin-config-section">
-                        <h4>Bestehende Produkte</h4>
-                        <div class="admin-config-list" id="productListAdmin">
-                            </div>
-                    </div>
-                    <button class="menu-button bg-blue-600 hover:bg-blue-700 col-span-4 mt-4" data-admin-view="products-selection">← Kategorien auswählen</button>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-2" data-admin-view="main-menu">Zurück zum Admin Menü</button>
-                </div>
-            `;
-
-            const productListAdmin = document.getElementById('productListAdmin');
-            const productsInThisCategory = posData.products[categoryId] || [];
-            if (productsInThisCategory.length === 0) {
-                productListAdmin.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Produkte in dieser Kategorie vorhanden.</div>';
-            } else {
-                productsInThisCategory.forEach(product => {
-                    const item = document.createElement('div');
-                    item.classList.add('admin-config-item');
-                    item.innerHTML = `
-                        <span>${product.name} - ${formatCurrency(product.price)}</span>
-                        <div>
-                            <button class="delete" data-id="${product.id}">Löschen</button>
-                        </div>
-                    `;
-                    productListAdmin.appendChild(item);
-                });
-            }
-
-            document.getElementById('addProductBtn').addEventListener('click', () => {
-                const name = document.getElementById('newProductName').value.trim();
-                const price = document.getElementById('newProductPrice').value;
-                if (name && price && !isNaN(parseFloat(price))) {
-                    addProduct(categoryId, name, parseFloat(price));
-                    document.getElementById('newProductName').value = ''; // Clear input
-                    document.getElementById('newProductPrice').value = ''; // Clear input
-                } else {
-                    showMessage('Eingabefehler', 'Bitte geben Sie Produktname und einen gültigen Preis ein.');
-                }
-            });
-
-            productListAdmin.addEventListener('click', (event) => {
-                if (event.target.classList.contains('delete')) {
-                    deleteProduct(event.target.dataset.id);
-                }
-            });
-
-            // Back button listeners
-            document.querySelector('.admin-config-panel .menu-button[data-admin-view="products-selection"]').addEventListener('click', () => {
-                currentCategory = null; // Clear selected category for products
-                renderAdminProductsSelection();
-            });
-            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
-                currentCategory = null; // Clear selected category for products
-                currentAdminView = 'main';
-                renderAdminMainMenu();
-            });
-        }
-
-
-        function renderAdminSellers() {
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4">
-                    <div class="admin-config-section">
-                        <h4>Verkäufer hinzufügen</h4>
-                        <input type="text" id="newSellerName" placeholder="Verkäufername">
-                        <button id="addSellerBtn">Hinzufügen</button>
-                    </div>
-                    <div class="admin-config-section">
-                        <h4>Bestehende Verkäufer</h4>
-                        <div class="admin-config-list" id="sellerListAdmin">
-                            </div>
-                    </div>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-view="main-menu">Zurück zum Admin Menü</button>
-                </div>
-            `;
-            rightPanel.classList.add('grid');
-            rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
-
-
-            const sellerListAdmin = document.getElementById('sellerListAdmin');
-            if (posData.sellers.length === 0) {
-                sellerListAdmin.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Verkäufer vorhanden.</div>';
-            } else {
-                posData.sellers.forEach(seller => {
-                    const item = document.createElement('div');
-                    item.classList.add('admin-config-item');
-                    item.innerHTML = `
-                        <span>${seller.name}</span>
-                        <div>
-                            <button class="delete" data-id="${seller.id}">Löschen</button>
-                        </div>
-                    `;
-                    sellerListAdmin.appendChild(item);
-                });
-            }
-
-            document.getElementById('addSellerBtn').addEventListener('click', () => {
-                const name = document.getElementById('newSellerName').value.trim();
-                if (name) {
-                    addSeller(name);
-                    document.getElementById('newSellerName').value = ''; // Clear input
-                } else {
-                    showMessage('Eingabefehler', 'Bitte geben Sie einen Verkäufernamen ein.');
-                }
-            });
-
-            sellerListAdmin.addEventListener('click', (event) => {
-                if (event.target.classList.contains('delete')) {
-                    deleteSeller(event.target.dataset.id);
-                }
-            });
-
-            // Back button listener
-            document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
-                currentAdminView = 'main';
-                renderAdminMainMenu();
-            });
-        }
-
-        // --- Print Functionality (Wertbon) ---
-
-        function printReceipt() {
-            const printArea = document.createElement('div');
-            printArea.id = 'print-area-temp'; // ID for CSS targeting
-            document.body.appendChild(printArea); // Temporarily append to body
-
-            // Create a wrapper for the actual bon content to use page-break-inside
-            const wertbonDiv = document.createElement('div');
-            wertbonDiv.classList.add('wertbon-print-area');
-            printArea.appendChild(wertbonDiv);
-
-            wertbonDiv.innerHTML = `
-                <h2>Wertbon</h2>
-                <p style="text-align: center;">${selectedKasseName}</p>
-                <p style="text-align: center;">Datum: ${new Date().toLocaleDateString('de-DE')}</p>
-                <p style="text-align: center;">Uhrzeit: ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
-                <div class="dashed-line"></div>
-                ${currentOrder.map(item => `
-                    <p class="item-line">${item.qty}x ${item.name} <span style="float: right;">${formatCurrency(item.total)}</span></p>
-                `).join('')}
-                <div class="dashed-line"></div>
-                <p class="item-line">TOTAL: <span style="float: right;">${totalAmount.textContent}</span></p>
-                <p>BAR: <span style="float: right;">${cashAmount.textContent}</span></p>
-                <p>RÜCKGELD: <span style="float: right;">${changeAmount.textContent}</span></p>
-                <div class="dashed-line"></div>
-                <p class="thank-you" style="text-align: center;">Vielen Dank für Ihren Einkauf!</p>
-                <p class="small-note" style="text-align: center; margin-top: 20px;">
-                    <img src="https://via.placeholder.com/100x50.png?text=LOGO" alt="Logo" style="width: 50mm; margin: 0 auto; display: block;">
-                </p>
-                <p class="italic-note" style="text-align: center;">Bspw. Footer-Nachricht, Adresse, Website etc.</p>
-            `;
-
-            window.print(); // Trigger the print dialog
-
-            // Clean up the temporary print area after printing
-            setTimeout(() => {
-                document.body.removeChild(printArea);
-                // Record the sale and then start a new order
-                recordSale(currentOrder, parseFloat(totalAmount.textContent.replace('€', '').replace(',', '.')), cashGiven, parseFloat(changeAmount.textContent.replace('€', '').replace(',', '.')));
-                startNewOrder(); // Start a new order after printing
-            }, 500); // Give browser a moment to handle print dialog
-        }
-    </script>
-</body>
-</html>
+    <div class="pos-container">
+        <!-- Header Bar -->
+        <div class="header-bar">
+            <div class="flex items-center gap-2">
+                <span class="user-badge" id="cashierBadge">Kasse: Nicht ausgewählt</span>
+                <!-- New span to display userId for debugging -->
+                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
+                <button id="liveDisplayLinkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-full text-sm ml-4">Live Display Link</button>
+                <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
+                <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
+                <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="status-item">REG</span>
+                <span class="status-item">RÜCKGELD</span>
+                <span id="changeHeader" class="change-display">€0.00</span>
+                <span id="currentTime" class="status-item"></span>
+                <span id="currentDate" class="status-item"></span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Left Panel (Order List & Summary) -->
+            <div class="left-panel">
+                <div class="order-list-header">
+                    <span class="qty">Menge</span>
+                    <span class="name">Artikel</span>
+                    <span class="price">Preis</span>
+                </div>
+                <div class="order-list-container" id="orderList">
+                    <!-- Order items will be dynamically added here -->
+                </div>
+                <div class="summary-section">
+                    <div class="summary-item subtotal">
+                        <span>ZWISCHENSUMME</span>
+                        <span id="subtotalAmount">€0.00</span>
+                    </div>
+                    <div class="summary-item total">
+                        <span>TOTAL</span>
+                        <span id="totalAmount">€0.00</span>
+                    </div>
+                    <div class="summary-item cash">
+                        <span>BAR</span>
+                        <span id="cashAmount">€0.00</span>
+                    </div>
+                    <div class="summary-item change">
+                        <span>RÜCKGELD</span>
+                        <span id="changeAmount">€0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel (Categories/Products/Admin Config) -->
+            <div class="right-panel" id="rightPanel">
+                <!-- Content will be rendered dynamically here -->
+                <div id="loadingMessage" class="col-span-4 text-center text-gray-400 text-lg hidden">Lade Daten...</div>
+            </div>
+        </div>
+
+        <!-- Bottom Panel Container (includes input display and buttons) -->
+        <div class="bottom-panel-container">
+            <!-- Input Display Area with Clear Button -->
+            <div class="input-display-area">
+                <div id="inputDisplay" class="input-display-line"></div>
+                <button id="clearInputButton" class="clear-input-button">C</button>
+            </div>
+            
+            <!-- Keypad Area - initially visible -->
+            <div id="keypadArea" class="bottom-panel">
+                <!-- Row 1 -->
+                <button class="num-button" data-input="7">7</button>
+                <button class="num-button" data-input="8">8</button>
+                <button class="num-button" data-input="9">9</button>
+                <button class="num-button" data-input="0">0</button>
+                <button class="action-button yellow-func" data-input="X">X</button>
+
+                <!-- Row 2 -->
+                <button class="num-button" data-input="4">4</button>
+                <button class="num-button" data-input="5">5</button>
+                <button class="num-button" data-input="6">6</button>
+                <button class="num-button" data-input="00">00</button>
+                <button class="action-button purple-func" data-action="function" data-function="zws">ZWS</button>
+
+                <!-- Row 3 -->
+                <button class="num-button" data-input="1">1</button>
+                <button class="num-button" data-input="2">2</button>
+                <button class="num-button" data-input="3">3</button>
+                <button class="num-button decimal" data-input=".">,</button>
+                <button class="action-button bar-func" data-action="function" data-function="bar">BAR</button>
+            </div>
+
+            <!-- New Order Area - initially hidden -->
+            <div id="newOrderArea" class="hidden" style="height: calc(100% - 2.5rem - 0.7rem);">
+                <button id="newOrderButton" class="new-order-button">NEUE BESTELLUNG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Message Box (Kept for other messages like login success/failure, etc.) -->
+    <div id="messageBoxOverlay" class="message-box-overlay hidden">
+        <div class="message-box">
+            <h3 id="messageBoxTitle">Nachricht</h3>
+            <p id="messageBoxContent"></p>
+            <button id="messageBoxClose">OK</button>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginOverlay" class="admin-login-overlay hidden">
+        <div class="admin-login-box">
+            <h3>Admin Login</h3>
+            <input type="text" id="adminUsername" placeholder="Benutzername" value="admin">
+            <input type="password" id="adminPassword" placeholder="Passwort" value="admin123">
+            <button id="loginBtn">Login</button>
+            <button id="cancelLoginBtn">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- Kasse Select Modal (New) -->
+    <div id="kasseSelectOverlay" class="kasse-select-overlay">
+        <div class="kasse-select-box">
+            <h3>Kasse auswählen</h3>
+            <p>Bitte wählen Sie Ihre Kasse aus:</p>
+            <div class="kasse-buttons">
+                <button data-kasse-id="Kasse1">Kasse 1</button>
+                <button data-kasse-id="Kasse2">Kasse 2</button>
+                <button data-kasse-id="Kasse3">Kasse 3</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Display Link Modal -->
+    <div id="liveDisplayOverlay" class="live-display-overlay hidden">
+        <div class="live-display-box">
+            <h3>Live Display Link</h3>
+            <p>Öffne diesen Link auf dem zweiten iPad:</p>
+            <input type="text" id="liveDisplayUrl" readonly>
+            <button id="copyLiveDisplayUrlBtn">Link kopieren</button>
+            <button id="closeLiveDisplayBtn">Schließen</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase app and services
+        let app;
+        let db;
+        let auth;
+        let userId = 'anonymous'; // Default to anonymous until authenticated
+        let selectedKasseId = null; // Stores the selected Kasse ID
+
+        // Firebase Configuration - REPLACE with your actual Firebase project config
+        const firebaseConfig = {
+          apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
+          authDomain: "verkaufssoftware.firebaseapp.com",
+          projectId: "verkaufssoftware",
+          storageBucket: "verkaufssoftware.firebasestorage.app",
+          messagingSenderId: "268747007466",
+          appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
+          measurementId: "G-RMX5KJK543"
+        };
+        // For GitHub deployment, use your projectId as appId
+        const appId = firebaseConfig.projectId;
+
+
+        // DOM Elements
+        const orderList = document.getElementById('orderList');
+        const subtotalAmount = document.getElementById('subtotalAmount');
+        const totalAmount = document.getElementById('totalAmount');
+        const cashAmount = document.getElementById('cashAmount');
+        const changeAmount = document.getElementById('changeAmount');
+        const changeHeader = document.getElementById('changeHeader');
+        const currentDateElem = document.getElementById('currentDate');
+        const currentTimeElem = document.getElementById('currentTime');
+        const displayUserId = document.getElementById('displayUserId'); 
+        const cashierBadge = document.getElementById('cashierBadge'); // New: Kasse display
+
+        const messageBoxOverlay = document.getElementById('messageBoxOverlay');
+        const messageBoxTitle = document.getElementById('messageBoxTitle');
+        const messageBoxContent = document.getElementById('messageBoxContent');
+        const messageBoxClose = document.getElementById('messageBoxClose');
+
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+        const adminModeStatus = document.getElementById('adminModeStatus');
+        const adminLoginOverlay = document.getElementById('adminLoginOverlay');
+        const adminUsernameInput = document.getElementById('adminUsername');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const cancelLoginBtn = document.getElementById('cancelLoginBtn'); 
+
+        const kasseSelectOverlay = document.getElementById('kasseSelectOverlay'); // New: Kasse select modal
+        const kasseButtons = kasseSelectOverlay.querySelector('.kasse-buttons'); // Container for Kasse buttons
+
+        const rightPanel = document.getElementById('rightPanel');
+        const inputDisplay = document.getElementById('inputDisplay'); // Input display element
+        const clearInputButton = document.getElementById('clearInputButton'); // New C button
+
+        const keypadArea = document.getElementById('keypadArea'); // Numeric keypad and function buttons area
+        const newOrderArea = document.getElementById('newOrderArea'); // "Neue Bestellung" button area
+        const newOrderButton = document.getElementById('newOrderButton'); // The "Neue Bestellung" button
+
+        // Live Display Elements
+        const liveDisplayLinkBtn = document.getElementById('liveDisplayLinkBtn');
+        const liveDisplayOverlay = document.getElementById('liveDisplayOverlay');
+        const liveDisplayUrlInput = document.getElementById('liveDisplayUrl');
+        const copyLiveDisplayUrlBtn = document.getElementById('copyLiveDisplayUrlBtn');
+        const closeLiveDisplayBtn = document.getElementById('closeLiveDisplayBtn');
+        const loadingMessage = document.getElementById('loadingMessage'); // Loading message
+
+
+        // State variables
+        let currentOrder = [];
+        let multiplier = 1;
+        let currentInput = '0.00'; // Initialize with "0.00"
+        let cashGiven = 0;
+        let isAdminMode = false;
+        let currentCategory = null; // Stores the currently selected category for product display
+        let currentAdminView = 'main'; // Tracks the current admin view: 'main', 'categories', 'products', 'sellers'
+
+        // POS Data (now dynamically loaded from Firebase)
+        let posData = {
+            "categories": [],
+            "products": {}, // Products will be grouped by category ID in this object
+            "sellers": [] // New: Array to store seller data
+        };
+
+        // State to track if Firestore listeners have been set up
+        let firestoreListenersSetup = false;
+
+        // --- Firebase Initialization and Auth ---
+        async function initializeFirebase() {
+            try {
+                if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    console.log("Firebase initialized.");
+
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
+                            console.log("User authenticated. Current userId:", userId);
+                            // Only show Kasse selection if not already selected
+                            if (!selectedKasseId) {
+                                kasseSelectOverlay.classList.remove('hidden');
+                            } else {
+                                // If Kasse was already selected (e.g., page refresh), set up listeners directly
+                                if (!firestoreListenersSetup) {
+                                    console.log("Authentication successful, Kasse already selected, calling setupFirestoreListeners.");
+                                    setupFirestoreListeners();
+                         
