@@ -668,7 +668,8 @@
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Import addDoc and serverTimestamp for adding new documents with auto-generated IDs
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase app and services
         let app;
@@ -683,7 +684,7 @@
           apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
           authDomain: "verkaufssoftware.firebaseapp.com",
           projectId: "verkaufssoftware",
-          storageBucket: "verkaufssoftware.firebasestorage.app",
+          storageBucket: "verkaufssoftware.firebaseapp.com",
           messagingSenderId: "268747007466",
           appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
           measurementId: "G-RMX5KJK543"
@@ -998,9 +999,11 @@
         // --- Core Logic Functions ---
 
         function handleNumericInput(value) {
+            // Allow initial '0.00' to be replaced by a number, but keep it if adding decimals
             if (currentInput === '0.00' && value !== '.') {
                 currentInput = value;
             } else if (value === '.') {
+                // Ensure only one decimal point
                 if (!currentInput.includes('.')) {
                     currentInput += value;
                 }
@@ -1011,7 +1014,8 @@
         }
 
         function handleFunction(func) {
-            const inputValue = parseFloat(currentInput.replace(',', '.')); // Convert comma to dot for parsing
+            // Replace comma with dot for parseFloat to work correctly
+            const inputValue = parseFloat(currentInput.replace(',', '.')); 
             if (isNaN(inputValue)) {
                 showMessage('Fehler', 'Ungültige Eingabe.');
                 return;
@@ -1041,11 +1045,12 @@
         }
 
         function formatCurrency(amount) {
-            return `€${parseFloat(amount).toFixed(2).replace('.', ',')}`; // Format to 2 decimal places and use comma
+            // Ensure amount is a number and format to 2 decimal places with comma
+            return `€${parseFloat(amount).toFixed(2).replace('.', ',')}`; 
         }
 
         function processPayment() {
-            const total = parseFloat(totalAmount.textContent.replace('€', ''));
+            const total = parseFloat(totalAmount.textContent.replace('€', '').replace(',', '.')); // Handle comma in total
             const change = cashGiven - total;
 
             if (cashGiven < total) {
@@ -1055,6 +1060,8 @@
 
             showMessage('Zahlung erfolgreich', `Gesamt: ${formatCurrency(total)}<br>Bar: ${formatCurrency(cashGiven)}<br>Rückgeld: ${formatCurrency(change)}`);
             printReceipt(); // Trigger printing
+            // The call to startNewOrder() is moved into the setTimeout in printReceipt()
+            // to ensure it happens AFTER the print dialog is handled.
             showNewOrderButton();
         }
 
@@ -1081,15 +1088,18 @@
         // --- Firebase Data Handling ---
         async function setupFirestoreListeners() {
             if (firestoreListenersSetup || !selectedKasseId) {
-                console.log("Firestore listeners already setup or Kasse not selected.");
+                console.log("Firestore listeners already setup or Kasse not selected. Skipping setup.");
                 return;
             }
             firestoreListenersSetup = true;
-            loadingMessage.classList.remove('hidden');
+            loadingMessage.classList.remove('hidden'); // Show loading message
             rightPanel.innerHTML = ''; // Clear existing content
+
+            console.log(`Setting up listeners for Kasse: ${selectedKasseId}`);
 
             // Listen for categories
             onSnapshot(collection(db, `kassen/${selectedKasseId}/categories`), (snapshot) => {
+                console.log("Categories snapshot received.");
                 posData.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 posData.categories.sort((a, b) => (a.order || 0) - (b.order || 0)); // Sort by order
                 console.log("Categories loaded:", posData.categories);
@@ -1098,24 +1108,22 @@
                 } else {
                     if (currentAdminView === 'categories') {
                         renderAdminCategories();
-                    } else if (currentAdminView === 'products') {
-                        // If we were on products and categories updated, refresh products
-                        if (currentCategory) {
-                            renderAdminProducts(currentCategory.id);
-                        } else {
-                            renderAdminMainMenu(); // Fallback if no category selected
-                        }
+                    } else if (currentAdminView === 'products' && currentCategory) { // Update if viewing products of a specific category
+                        renderAdminProducts(currentCategory.id);
+                    } else if (currentAdminView === 'products') { // If in product selection view
+                        renderAdminProductsSelection();
                     }
                 }
-                loadingMessage.classList.add('hidden');
+                loadingMessage.classList.add('hidden'); // Hide loading message
             }, (error) => {
                 console.error("Error fetching categories:", error);
                 showMessage('Datenfehler', 'Kategorien konnten nicht geladen werden: ' + error.message);
-                loadingMessage.classList.add('hidden');
+                loadingMessage.classList.add('hidden'); // Hide loading message on error
             });
 
             // Listen for products for the selected Kasse
             onSnapshot(collection(db, `kassen/${selectedKasseId}/products`), (snapshot) => {
+                console.log("Products snapshot received.");
                 posData.products = {}; // Clear existing products
                 snapshot.docs.forEach(doc => {
                     const product = { id: doc.id, ...doc.data() };
@@ -1138,17 +1146,20 @@
                 } else {
                     if (currentAdminView === 'products' && currentCategory) {
                         renderAdminProducts(currentCategory.id);
+                    } else if (currentAdminView === 'products') {
+                        renderAdminProductsSelection();
                     }
                 }
-                loadingMessage.classList.add('hidden');
+                loadingMessage.classList.add('hidden'); // Hide loading message
             }, (error) => {
                 console.error("Error fetching products:", error);
                 showMessage('Datenfehler', 'Produkte konnten nicht geladen werden: ' + error.message);
-                loadingMessage.classList.add('hidden');
+                loadingMessage.classList.add('hidden'); // Hide loading message on error
             });
 
             // Listen for sellers
             onSnapshot(collection(db, `kassen/${selectedKasseId}/sellers`), (snapshot) => {
+                console.log("Sellers snapshot received.");
                 posData.sellers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 posData.sellers.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
                 console.log("Sellers loaded:", posData.sellers);
@@ -1159,11 +1170,23 @@
                 console.error("Error fetching sellers:", error);
                 showMessage('Datenfehler', 'Verkäufer konnten nicht geladen werden: ' + error.message);
             });
+
+            // Ensure initial rendering if data is already there or for fresh load
+            if (!isAdminMode && posData.categories.length > 0) {
+                renderCategories();
+            }
         }
 
         async function addCategory(name, color) {
             try {
-                await setDoc(doc(db, `kassen/${selectedKasseId}/categories`, name), { name, color, order: Date.now() });
+                // Use a proper document ID (e.g., lowercase name, replace spaces, or let Firebase generate)
+                // For simplicity, let's use the name as ID for now, but be aware of duplicates/invalid chars
+                const docRef = doc(db, `kassen/${selectedKasseId}/categories`, name); 
+                await setDoc(docRef, { 
+                    name: name, 
+                    color: color, 
+                    order: Date.now() // Simple ordering, can be improved
+                });
                 showMessage('Erfolg', `Kategorie "${name}" hinzugefügt.`);
             } catch (e) {
                 console.error("Error adding category: ", e);
@@ -1187,6 +1210,7 @@
                     // Then delete the category itself
                     await deleteDoc(doc(db, `kassen/${selectedKasseId}/categories`, categoryId));
                     showMessage('Erfolg', `Kategorie "${categoryId}" und zugehörige Produkte gelöscht.`);
+                    currentCategory = null; // Reset selected category if deleted
                 } catch (e) {
                     console.error("Error deleting category: ", e);
                     showMessage('Fehler', 'Kategorie konnte nicht gelöscht werden: ' + e.message);
@@ -1196,11 +1220,13 @@
 
         async function addProduct(categoryId, name, price) {
             try {
-                await setDoc(doc(db, `kassen/${selectedKasseId}/products`, `${categoryId}-${name}`), {
-                    categoryId,
-                    name,
+                // Use addDoc to let Firestore generate a unique ID for the product
+                const productsCollectionRef = collection(db, `kassen/${selectedKasseId}/products`);
+                await addDoc(productsCollectionRef, {
+                    categoryId: categoryId,
+                    name: name,
                     price: parseFloat(price),
-                    order: Date.now()
+                    order: Date.now() // Simple ordering
                 });
                 showMessage('Erfolg', `Produkt "${name}" hinzugefügt.`);
             } catch (e) {
@@ -1210,10 +1236,10 @@
         }
 
         async function deleteProduct(productId) {
-            if (confirm(`Sind Sie sicher, dass Sie das Produkt "${productId}" löschen möchten?`)) {
+            if (confirm(`Sind Sie sicher, dass Sie das Produkt löschen möchten?`)) { // Removed productId from confirm as it's the Firebase generated ID
                 try {
                     await deleteDoc(doc(db, `kassen/${selectedKasseId}/products`, productId));
-                    showMessage('Erfolg', `Produkt "${productId}" gelöscht.`);
+                    showMessage('Erfolg', `Produkt gelöscht.`);
                 } catch (e) {
                     console.error("Error deleting product: ", e);
                     showMessage('Fehler', 'Produkt konnte nicht gelöscht werden: ' + e.message);
@@ -1223,7 +1249,7 @@
 
         async function addSeller(name) {
             try {
-                await setDoc(doc(db, `kassen/${selectedKasseId}/sellers`, name), { name });
+                await setDoc(doc(db, `kassen/${selectedKasseId}/sellers`, name), { name: name }); // Ensure name is passed as object
                 showMessage('Erfolg', `Verkäufer "${name}" hinzugefügt.`);
             } catch (e) {
                 console.error("Error adding seller: ", e);
@@ -1251,8 +1277,8 @@
             }
             try {
                 const salesRef = collection(db, `kassen/${selectedKasseId}/sales`);
-                await setDoc(doc(salesRef), {
-                    timestamp: new Date(),
+                await addDoc(salesRef, { // Use addDoc to auto-generate sale ID
+                    timestamp: serverTimestamp(), // Use server timestamp for consistency
                     cashierId: userId,
                     kasseId: selectedKasseId,
                     items: orderItems,
@@ -1273,6 +1299,11 @@
         function renderCategories() {
             if (isAdminMode) return; // Don't render categories in admin mode
             rightPanel.innerHTML = '';
+            // If there are no categories, show a message
+            if (posData.categories.length === 0) {
+                rightPanel.innerHTML = '<div class="col-span-4 text-center text-gray-500 pt-4">Keine Kategorien gefunden.<br>Fügen Sie welche im Admin-Modus hinzu.</div>';
+                return;
+            }
             posData.categories.forEach(category => {
                 const categoryButton = document.createElement('button');
                 categoryButton.classList.add('product-button', category.color || 'gray');
@@ -1300,13 +1331,20 @@
             rightPanel.appendChild(backButton);
 
             const productsInThisCategory = posData.products[categoryId] || [];
-            productsInThisCategory.forEach(product => {
-                const productButton = document.createElement('button');
-                productButton.classList.add('product-button', posData.categories.find(c => c.id === product.categoryId)?.color || 'gray');
-                productButton.innerHTML = `${product.name}<br>${formatCurrency(product.price)}`;
-                productButton.addEventListener('click', () => addOrderItem(product));
-                rightPanel.appendChild(productButton);
-            });
+            if (productsInThisCategory.length === 0) {
+                const noProductsMessage = document.createElement('div');
+                noProductsMessage.classList.add('col-span-3', 'text-center', 'text-gray-500', 'pt-4');
+                noProductsMessage.textContent = 'Keine Produkte in dieser Kategorie.';
+                rightPanel.appendChild(noProductsMessage);
+            } else {
+                productsInThisCategory.forEach(product => {
+                    const productButton = document.createElement('button');
+                    productButton.classList.add('product-button', posData.categories.find(c => c.id === product.categoryId)?.color || 'gray');
+                    productButton.innerHTML = `${product.name}<br>${formatCurrency(product.price)}`;
+                    productButton.addEventListener('click', () => addOrderItem(product));
+                    rightPanel.appendChild(productButton);
+                });
+            }
         }
 
         function addOrderItem(product) {
@@ -1402,23 +1440,28 @@
             rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center'); // Remove flexbox
 
             const categoryListAdmin = document.getElementById('categoryListAdmin');
-            posData.categories.forEach(category => {
-                const item = document.createElement('div');
-                item.classList.add('admin-config-item');
-                item.innerHTML = `
-                    <span>${category.name} (${category.color})</span>
-                    <div>
-                        <button class="delete" data-id="${category.id}">Löschen</button>
-                    </div>
-                `;
-                categoryListAdmin.appendChild(item);
-            });
+            if (posData.categories.length === 0) {
+                categoryListAdmin.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Kategorien vorhanden.</div>';
+            } else {
+                posData.categories.forEach(category => {
+                    const item = document.createElement('div');
+                    item.classList.add('admin-config-item');
+                    item.innerHTML = `
+                        <span>${category.name} (${category.color})</span>
+                        <div>
+                            <button class="delete" data-id="${category.id}">Löschen</button>
+                        </div>
+                    `;
+                    categoryListAdmin.appendChild(item);
+                });
+            }
 
             document.getElementById('addCategoryBtn').addEventListener('click', () => {
-                const name = document.getElementById('newCategoryName').value;
+                const name = document.getElementById('newCategoryName').value.trim(); // Trim whitespace
                 const color = document.getElementById('newCategoryColor').value;
                 if (name) {
                     addCategory(name, color);
+                    document.getElementById('newCategoryName').value = ''; // Clear input
                 } else {
                     showMessage('Eingabefehler', 'Bitte geben Sie einen Kategorienamen ein.');
                 }
@@ -1450,16 +1493,20 @@
             rightPanel.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
 
             const productCategorySelectionList = document.getElementById('productCategorySelectionList');
-            posData.categories.forEach(category => {
-                const categoryButton = document.createElement('button');
-                categoryButton.classList.add('product-button', category.color || 'gray'); // Reusing product-button styles
-                categoryButton.textContent = category.name;
-                categoryButton.addEventListener('click', () => {
-                    currentCategory = category; // Set current category for product management
-                    renderAdminProducts(category.id);
+            if (posData.categories.length === 0) {
+                productCategorySelectionList.innerHTML = '<div class="col-span-4 text-center text-gray-500 pt-4">Zuerst Kategorien im "Kategorien verwalten"-Bereich hinzufügen.</div>';
+            } else {
+                posData.categories.forEach(category => {
+                    const categoryButton = document.createElement('button');
+                    categoryButton.classList.add('product-button', category.color || 'gray'); // Reusing product-button styles
+                    categoryButton.textContent = category.name;
+                    categoryButton.addEventListener('click', () => {
+                        currentCategory = category; // Set current category for product management
+                        renderAdminProducts(category.id);
+                    });
+                    productCategorySelectionList.appendChild(categoryButton);
                 });
-                productCategorySelectionList.appendChild(categoryButton);
-            });
+            }
 
             document.querySelector('.admin-config-panel .menu-button[data-admin-view="main-menu"]').addEventListener('click', () => {
                 currentAdminView = 'main';
@@ -1497,25 +1544,31 @@
 
             const productListAdmin = document.getElementById('productListAdmin');
             const productsInThisCategory = posData.products[categoryId] || [];
-            productsInThisCategory.forEach(product => {
-                const item = document.createElement('div');
-                item.classList.add('admin-config-item');
-                item.innerHTML = `
-                    <span>${product.name} - ${formatCurrency(product.price)}</span>
-                    <div>
-                        <button class="delete" data-id="${product.id}">Löschen</button>
-                    </div>
-                `;
-                productListAdmin.appendChild(item);
-            });
+            if (productsInThisCategory.length === 0) {
+                productListAdmin.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Produkte in dieser Kategorie vorhanden.</div>';
+            } else {
+                productsInThisCategory.forEach(product => {
+                    const item = document.createElement('div');
+                    item.classList.add('admin-config-item');
+                    item.innerHTML = `
+                        <span>${product.name} - ${formatCurrency(product.price)}</span>
+                        <div>
+                            <button class="delete" data-id="${product.id}">Löschen</button>
+                        </div>
+                    `;
+                    productListAdmin.appendChild(item);
+                });
+            }
 
             document.getElementById('addProductBtn').addEventListener('click', () => {
-                const name = document.getElementById('newProductName').value;
+                const name = document.getElementById('newProductName').value.trim();
                 const price = document.getElementById('newProductPrice').value;
-                if (name && price) {
-                    addProduct(categoryId, name, price);
+                if (name && price && !isNaN(parseFloat(price))) {
+                    addProduct(categoryId, name, parseFloat(price));
+                    document.getElementById('newProductName').value = ''; // Clear input
+                    document.getElementById('newProductPrice').value = ''; // Clear input
                 } else {
-                    showMessage('Eingabefehler', 'Bitte geben Sie Produktname und Preis ein.');
+                    showMessage('Eingabefehler', 'Bitte geben Sie Produktname und einen gültigen Preis ein.');
                 }
             });
 
@@ -1559,22 +1612,27 @@
 
 
             const sellerListAdmin = document.getElementById('sellerListAdmin');
-            posData.sellers.forEach(seller => {
-                const item = document.createElement('div');
-                item.classList.add('admin-config-item');
-                item.innerHTML = `
-                    <span>${seller.name}</span>
-                    <div>
-                        <button class="delete" data-id="${seller.id}">Löschen</button>
-                    </div>
-                `;
-                sellerListAdmin.appendChild(item);
-            });
+            if (posData.sellers.length === 0) {
+                sellerListAdmin.innerHTML = '<div class="text-center text-gray-500 pt-4">Keine Verkäufer vorhanden.</div>';
+            } else {
+                posData.sellers.forEach(seller => {
+                    const item = document.createElement('div');
+                    item.classList.add('admin-config-item');
+                    item.innerHTML = `
+                        <span>${seller.name}</span>
+                        <div>
+                            <button class="delete" data-id="${seller.id}">Löschen</button>
+                        </div>
+                    `;
+                    sellerListAdmin.appendChild(item);
+                });
+            }
 
             document.getElementById('addSellerBtn').addEventListener('click', () => {
-                const name = document.getElementById('newSellerName').value;
+                const name = document.getElementById('newSellerName').value.trim();
                 if (name) {
                     addSeller(name);
+                    document.getElementById('newSellerName').value = ''; // Clear input
                 } else {
                     showMessage('Eingabefehler', 'Bitte geben Sie einen Verkäufernamen ein.');
                 }
@@ -1631,7 +1689,8 @@
             // Clean up the temporary print area after printing
             setTimeout(() => {
                 document.body.removeChild(printArea);
-                recordSale(currentOrder, parseFloat(totalAmount.textContent.replace('€', '')), cashGiven, parseFloat(changeAmount.textContent.replace('€', '')));
+                // Record the sale and then start a new order
+                recordSale(currentOrder, parseFloat(totalAmount.textContent.replace('€', '').replace(',', '.')), cashGiven, parseFloat(changeAmount.textContent.replace('€', '').replace(',', '.')));
                 startNewOrder(); // Start a new order after printing
             }, 500); // Give browser a moment to handle print dialog
         }
