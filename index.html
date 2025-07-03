@@ -1,206 +1,802 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meine Daten aus Firebase</title>
-    <style>
-        /* Grundlegende Styling-Regeln für die Optik der Seite */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f0f2f5; /* Helles Grau als Hintergrund */
-            color: #333;
-            line-height: 1.6;
-        }
-        h1 {
-            color: #2c3e50; /* Dunkles Blau-Grau */
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        #data-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #ffffff; /* Weißer Hintergrund für den Inhaltsbereich */
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Sanfter Schatten */
-        }
-        ul {
-            list-style: none; /* Keine Standard-Listenpunkte */
-            padding: 0;
-            margin: 0;
-        }
-        li {
-            background-color: #eef2f7; /* Sehr helles Blau für Listenelemente */
-            margin-bottom: 15px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            border-left: 5px solid #007bff; /* Blauer Akzentstreifen links */
-            display: flex;
-            flex-direction: column; /* Elemente untereinander anordnen */
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Leichter Schatten für Elemente */
-        }
-        li strong {
-            color: #0056b3; /* Dunkleres Blau für Überschriften/Keys */
-            margin-right: 8px;
-        }
-        .error-message {
-            color: #dc3545; /* Rot für Fehlermeldungen */
-            font-weight: bold;
-            text-align: center;
-            padding: 15px;
-            background-color: #f8d7da; /* Hellroter Hintergrund */
-            border: 1px solid #f5c6cb;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-        .info-message {
-            color: #6c757d; /* Dunkles Grau für Info-Nachrichten */
-            font-style: italic;
-            text-align: center;
-            padding: 15px;
-            background-color: #e2e3e5; /* Hellgrauer Hintergrund */
-            border: 1px solid #d6d8db;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-    </style>
-    <script type="module">
-        // Importiere die benötigten Funktionen von Firebase
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js';
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kassensystem</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .pos-container {
+            width: 100%;
+            max-width: 1024px;
+            height: 768px; /* Fixed height for the entire POS system screen */
+            background-color: #1a1a1a;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 5px solid #000;
+        }
+        .header-bar {
+            background-color: #383838;
+            color: #ccc;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            border-top-left-radius: 1.2rem;
+            border-top-right-radius: 1.2rem;
+            border-bottom: 1px solid #4a4a4a;
+            height: 60px; /* Fixed height for the header */
+        }
+        .header-bar .user-badge {
+            background-color: #007bff;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .header-bar .status-item {
+            margin-left: 1.5rem;
+            font-weight: 600;
+        }
+        .header-bar .change-display {
+            color: #66ff66;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-left: 0.5rem;
+        }
+        .main-content {
+            flex-grow: 1; /* Takes remaining height after header and footer */
+            display: flex;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        .left-panel {
+            background-color: #2e2e2e;
+            width: 350px; /* Fixed width for the left panel */
+            flex-shrink: 0; /* Prevents it from shrinking */
+            border-radius: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            color: #eee;
+            border: 1px solid #4a4a4a;
+            height: 100%; /* Takes 100% of main-content's height */
+        }
+        .order-list-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0.25rem;
+            font-weight: bold;
+            border-bottom: 1px solid #5a5a5a;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: #bbb;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+        .order-list-container {
+            flex-grow: 1; /* Takes all available vertical space in left-panel */
+            overflow-y: auto; /* Enable scrolling for overflow */
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0.25rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+        }
+        .order-item:hover {
+            background-color: #3b3b3b;
+        }
+        .order-item .qty { width: 10%; text-align: left; }
+        .order-item .name { width: 60%; text-align: left; }
+        .order-item .price { width: 30%; text-align: right; }
+        .summary-section {
+            padding-top: 1rem;
+            font-size: 1.1rem;
+            border-top: 1px solid #5a5a5a;
+            flex-shrink: 0; /* Prevent summary from shrinking */
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+        }
+        .summary-item.subtotal {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        .summary-item.total {
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #ffcc00;
+        }
+        .summary-item.cash {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        .summary-item.change {
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #66ff66;
+        }
+        .right-panel {
+            flex: 1; /* Takes all remaining width */
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.7rem;
+            align-content: start;
+            height: 100%; /* Takes 100% of main-content's height */
+        }
+        .product-button {
+            background-color: #555;
+            color: white;
+            padding: 1rem 0.5rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+            height: 75px;
+        }
+        .product-button:hover {
+            background-color: #666;
+        }
+        /* Color classes for dynamic categories */
+        .product-button.yellow { background-color: #ffc107; color: #333; }
+        .product-button.orange { background-color: #fd7e14; }
+        .product-button.purple { background-color: #6f42c1; }
+        .product-button.green { background-color: #28a745; }
+        .product-button.blue { background-color: #007bff; }
+        .product-button.red { background-color: #dc3545; }
+        .product-button.light-blue { background-color: #17a2b8; }
+        .product-button.pink { background-color: #e83e8c; }
+        .product-button.gray { background-color: #6c757d; }
 
-        // --- 1. DEINE FIREBASE-PROJEKTKONFIGURATION ---
-        // !!! WICHTIG: ERSETZE DIESE PLATZHALTER mit deinen tatsächlichen Firebase-Projektinformationen. !!!
-        // Du findest diese in deiner Firebase-Konsole:
-        // Gehe zu "Projektübersicht" -> "Projekt-Einstellungen" (Zahnrad-Symbol oben links) -> "Deine Apps" -> Web-App.
-        const firebaseConfig = {
-            apiKey: "DEINE_API_SCHLÜSSEL", // Beispiel: "AIzaSyC..."
-            authDomain: "DEINE_PROJEKT_ID.firebaseapp.com", // Beispiel: "mein-projekt-12345.firebaseapp.com"
-            databaseURL: "https://DEINE_PROJEKT_ID-default-rtdb.europe-west1.firebasedatabase.app", // Beispiel: "https://mein-projekt-12345-default-rtdb.europe-west1.firebasedatabase.app" (Region beachten!)
-            projectId: "DEINE_PROJEKT_ID", // Beispiel: "mein-projekt-12345"
-            storageBucket: "DEINE_PROJEKT_ID.appspot.com", // Beispiel: "mein-projekt-12345.appspot.com"
-            messagingSenderId: "DEINE_MESSAGING_SENDER_ID", // Beispiel: "1234567890"
-            appId: "DEINE_APP_ID" // Beispiel: "1:234567890:web:abcdef1234567890abcdef"
-        };
 
-        // Firebase-App initialisieren
-        // Dies stellt die Verbindung zu deinem Firebase-Projekt her.
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+        .bottom-panel-container {
+            background-color: #2e2e2e;
+            padding: 1rem;
+            border-bottom-left-radius: 1.2rem;
+            border-bottom-right-radius: 1.2rem;
+            color: white;
+            border-top: 1px solid #4a4a4a;
+            height: 300px; /* Sufficient height for dynamic content */
+        }
 
-        // --- 2. REFERENZ AUF DEN PFAD DEINER DATEN IN FIREBASE ---
-        // !!! WICHTIG: PASSE DIESEN PFAD UNBEDINGT AN !!!
-        // Dieser String MUSS exakt dem Schlüssel oder Pfad in deiner Firebase Realtime Database entsprechen,
-        // unter dem sich deine anzuzeigenden Daten befinden.
-        // Beispiele: 'items', 'produkte', 'benutzerliste', 'werte/sensoren'
-        const dataRef = ref(database, 'DEIN_DATENPFAD'); 
+        .input-display-area {
+            display: flex;
+            align-items: center;
+            background-color: #1a1a1a;
+            border-radius: 0.5rem;
+            margin-bottom: 0.7rem;
+            border: 1px solid #4a4a4a;
+            min-height: 2.5rem; /* ~40px */
+            padding-right: 1rem; /* Padding for the display text */
+        }
 
-        /**
-         * Lädt Daten aus Firebase in Echtzeit und aktualisiert die Benutzeroberfläche.
-         * Verwendet 'onValue', das einmal sofort und bei jeder Datenänderung am Pfad aufgerufen wird.
-         */
-        function loadAndDisplayData() {
-            console.log("Versuche, Daten von Firebase zu laden...");
-            const dataContainerElement = document.getElementById('data-container');
-            if (!dataContainerElement) {
-                console.error("HTML-Element mit ID 'data-container' wurde nicht gefunden. UI kann nicht aktualisiert werden.");
-                return;
-            }
-            // Zeige eine Lade-Nachricht an, während die Daten abgerufen werden
-            dataContainerElement.innerHTML = '<p class="info-message">Lade Daten von Firebase...</p>';
+        .input-display-line {
+            flex-grow: 1; /* Takes up remaining space */
+            color: #66ff66;
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: right;
+            padding: 0.5rem 0; /* Padding handled by parent */
+        }
 
-            // Registriert einen Listener für Datenänderungen am angegebenen Pfad
-            onValue(dataRef, (snapshot) => {
-                const data = snapshot.val(); // Holt die Daten als JavaScript-Objekt/Array
+        .clear-input-button {
+            background-color: #dc3545; /* Red color for Clear */
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-left: 0.5rem; /* Space between button and display */
+            height: 40px; /* Match height of input display roughly */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .clear-input-button:hover {
+            background-color: #c82333;
+        }
 
-                if (data) {
-                    // Daten sind vorhanden. Firebase gibt oft ein Objekt von Objekten zurück (z.B. mit Auto-IDs als Keys).
-                    // Wir wandeln dies in ein Array von Objekten um, was für die Anzeige in einer Liste oft einfacher ist.
-                    const dataArray = Object.keys(data).map(key => ({
-                        id: key, // Der Firebase-Key (z.B. die Auto-ID) wird als 'id' hinzugefügt
-                        ...data[key] // Alle anderen Eigenschaften des Firebase-Objekts werden übernommen
-                    }));
+        .bottom-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 0.8fr) 1fr 1.2fr;
+            gap: 0.7rem;
+        }
+        
+        .num-button, .action-button {
+            height: 60px; /* Smaller consistent height for all buttons */
+            border-radius: 0.75rem; /* Ensure rounded corners for consistency */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            padding: 0.5rem; /* Reduced padding for smaller buttons */
+        }
 
-                    console.log("Daten erfolgreich geladen:", dataArray);
-                    updateDataListUI(dataArray); // Aktualisiere die Benutzeroberfläche mit den geladenen Daten
-                } else {
-                    // Keine Daten unter dem angegebenen Pfad gefunden oder der Pfad ist leer.
-                    console.warn(`Keine Daten unter dem Pfad '${dataRef.toString().split('/').pop()}' gefunden oder der Pfad ist leer.`);
-                    updateDataListUI([]); // Zeige eine leere Liste an
-                }
-            }, (error) => {
-                // Fehlerbehandlung: Ein Problem ist beim Laden der Daten aufgetreten (z.B. Berechtigung, Netzwerk)
-                console.error("Fehler beim Laden der Daten von Firebase:", error);
-                // Zeige eine detaillierte Fehlermeldung in der UI an
-                dataContainerElement.innerHTML = `
-                    <p class="error-message">
-                        Fehler beim Laden der Daten: ${error.message}.
-                        <br>Bitte überprüfe:
-                        <br>- Deine Internetverbindung
-                        <br>- Die **Firebase Security Rules** für den Pfad '${dataRef.toString().split('/').pop()}'
-                        <br>- Den **Datenpfad** in deinem Code (muss exakt stimmen)
-                        <br>- Die **Firebase-Konfiguration** im Code
-                    </p>
-                `;
-            });
-        }
+        .num-button {
+            background-color: #505050;
+            font-size: 1.2rem; /* Smaller font size for numbers */
+        }
+        .num-button:hover {
+            background-color: #606060;
+        }
+        .num-button.decimal {
+            font-size: 1.8rem; /* Slightly larger font for decimal comma */
+        }
 
-        /**
-         * Aktualisiert das HTML-Element, das die Liste der geladenen Daten anzeigt.
-         * @param {Array} items Ein Array von Objekten, das die geladenen Daten darstellt.
-         */
-        function updateDataListUI(items) {
-            const dataContainerElement = document.getElementById('data-container');
-            if (!dataContainerElement) return; // Falls das Element aus irgendeinem Grund nicht existiert
+        .action-button {
+            background-color: #444;
+            font-size: 1.2rem; /* Standard font size for action buttons (now smaller overall) */
+        }
+        .action-button:hover {
+            background-color: #555;
+        }
 
-            // Lösche den vorherigen Inhalt des Containers
-            dataContainerElement.innerHTML = '';
+        .action-button[data-input="X"],
+        .action-button[data-action="function"][data-function="zws"],
+        .action-button[data-action="function"][data-function="bar"] {
+            font-size: 1.6rem; /* Larger font size to make them stand out */
+        }
+        
+        .action-button.yellow-func { background-color: #ffc107; color: #333; }
+        .action-button.purple-func { background-color: #6f42c1; }
+        .action-button.bar-func { background-color: #66ff66; color: #333; }
 
-            if (items.length === 0) {
-                dataContainerElement.innerHTML = '<p class="info-message">Momentan sind keine Daten verfügbar.</p>';
-                return;
-            }
+        /* New Order Button Styling */
+        .new-order-button {
+            background-color: #28a745; /* Green color */
+            color: white;
+            font-weight: bold;
+            font-size: 2rem;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+            height: 100%; /* Take full height of its container */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .new-order-button:hover {
+            background-color: #218838;
+        }
 
-            // Erstelle eine ungeordnete Liste (UL) um die Daten darzustellen
-            const ul = document.createElement('ul');
-            items.forEach(item => {
-                const li = document.createElement('li');
-                let itemContent = `<strong>Firebase ID:</strong> ${item.id}`; // Der Firebase-Key ist immer dabei
+        /* Message Box Styling */
+        .message-box-overlay, .admin-login-overlay, .kasse-select-overlay, .live-display-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .message-box, .admin-login-box, .kasse-select-box, .live-display-box {
+            background-color: #333;
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 2px solid #555;
+        }
+        .message-box h3, .admin-login-box h3, .kasse-select-box h3, .live-display-box h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #ffcc00;
+        }
+        .message-box p, .admin-login-box p, .kasse-select-box p, .live-display-box p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+        .message-box button, .admin-login-box button, .kasse-select-box button, .live-display-box button {
+            background-color: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .message-box button:hover, .admin-login-box button:hover, .kasse-select-box button:hover, .live-display-box button:hover {
+            background-color: #0056b3;
+        }
+        .admin-login-box input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+            font-size: 1rem;
+        }
+        .admin-login-box button {
+            margin: 0 10px;
+        }
+        .kasse-select-box .kasse-buttons button {
+            display: block;
+            width: 80%;
+            margin: 1rem auto;
+            font-size: 1.5rem;
+            padding: 1rem;
+            background-color: #28a745;
+            color: white;
+            border-radius: 0.75rem;
+        }
+        .kasse-select-box .kasse-buttons button:hover {
+            background-color: #218838;
+        }
+        .live-display-box input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
 
-                // Gehe alle Eigenschaften des Objekts durch und zeige sie an
-                // Dies ist generisch, d.h. es funktioniert mit beliebigen Datenstrukturen.
-                for (const key in item) {
-                    // Überspringe die 'id', da sie schon oben behandelt wurde
-                    if (key !== 'id' && Object.prototype.hasOwnProperty.call(item, key)) {
-                        // Prüfe, ob der Wert ein einfaches Literal ist oder ein komplexeres Objekt
-                        if (typeof item[key] !== 'object' || item[key] === null) {
-                            itemContent += `<br><strong>${key}:</strong> ${item[key]}`;
-                        } else {
-                            // Wenn es ein Objekt ist, zeige es als JSON-String an oder implementiere eine tiefere Anzeige
-                            itemContent += `<br><strong>${key}:</strong> ${JSON.stringify(item[key])}`;
-                        }
-                    }
-                }
-                li.innerHTML = itemContent;
-                ul.appendChild(li);
-            });
 
-            // Füge die erstellte Liste dem HTML-Container hinzu
-            dataContainerElement.appendChild(ul);
-        }
+        /* Admin Configuration Panel Specific Styles */
+        .admin-config-panel {
+            grid-template-columns: repeat(2, 1fr);
+            overflow-y: auto;
+        }
+        .admin-config-section {
+            background-color: #3b3b3b;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .admin-config-section h4 {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #ffcc00;
+        }
+        .admin-config-section input, .admin-config-section select {
+            width: calc(100% - 20px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: white;
+        }
+        .admin-config-section button {
+            background-color: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-top: 5px;
+            margin-right: 5px;
+        }
+        .admin-config-section button.delete {
+            background-color: #dc3545;
+        }
+        .admin-config-section button:hover {
+            background-color: #218838;
+        }
+        .admin-config-section button.delete:hover {
+            background-color: #c82333;
+        }
+        .admin-config-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 5px;
+            margin-top: 10px;
+        }
+        .admin-config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #4a4a4a;
+        }
+        .admin-config-item:last-child {
+            border-bottom: none;
+        }
+        .admin-config-item button {
+            padding: 3px 8px;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
 
-        // --- 3. Startpunkt der Anwendung: Daten laden, sobald das Dokument bereit ist ---
-        // Stellt sicher, dass 'loadAndDisplayData' erst ausgeführt wird, nachdem das gesamte HTML-Dokument geladen
-        // und die DOM-Struktur verfügbar ist.
-        document.addEventListener('DOMContentLoaded', loadAndDisplayData);
+        /* Admin Main Menu specific styles */
+        .admin-main-menu {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            height: 100%; /* Take full height of right-panel */
+        }
+        .admin-main-menu .menu-button {
+            width: 80%;
+            max-width: 300px;
+            height: 80px;
+            font-size: 1.5rem;
+            background-color: #007bff;
+            color: white;
+            border-radius: 1rem;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .admin-main-menu .menu-button:hover {
+            background-color: #0056b3;
+        }
 
-    </script>
+
+        /* Wertbon Print Style */
+        @media print {
+            body > *:not(#print-area-temp) { /* Hide everything except the print area */
+                display: none !important;
+            }
+            #print-area-temp {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm; /* Standard receipt width */
+                padding: 10mm;
+                font-family: 'monospace';
+                font-size: 12px;
+                line-height: 1.4;
+                color: #000;
+                box-sizing: border-box;
+                page-break-after: always; /* Force a page break after each bon */
+            }
+            #print-area-temp:last-child {
+                page-break-after: auto; /* No page break after the very last bon */
+            }
+            #print-area-temp .wertbon-print-area {
+                width: 100%; /* Ensure inner bons take full width of print area */
+                page-break-inside: avoid; /* Avoid breaking individual bons across pages */
+            }
+
+            /* Specific styles for elements within wertbon-print-area when printing */
+            .wertbon-print-area h2,
+            .wertbon-print-area h3 {
+                text-align: center;
+                margin-bottom: 5px;
+            }
+            .wertbon-print-area img {
+                display: block; /* Ensure image is a block element for centering */
+                margin: 0 auto; /* Center image */
+            }
+            .wertbon-print-area p {
+                margin: 5px 0; /* Adjust paragraph margins */
+            }
+            .wertbon-print-area .dashed-line {
+                border-top: 1px dashed #000;
+                margin: 15px 0;
+            }
+            .wertbon-print-area .item-line {
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+            .wertbon-print-area .italic-note {
+                font-style: italic;
+                font-size: 0.9em; /* Smaller for "Bspw." */
+            }
+            .wertbon-print-area .small-note {
+                font-size: 0.9em;
+                margin-top: 10px;
+            }
+            .wertbon-print-area .thank-you {
+                font-size: 1.1em;
+                font-weight: bold;
+                margin-top: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Meine Daten aus Firebase Realtime Database</h1>
-    <div id="data-container">
-        </div>
-</body>
-</html>
+    <div class="pos-container">
+        <!-- Header Bar -->
+        <div class="header-bar">
+            <div class="flex items-center gap-2">
+                <span class="user-badge" id="cashierBadge">Kasse: Nicht ausgewählt</span>
+                <!-- New span to display userId for debugging -->
+                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
+                <button id="liveDisplayLinkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-full text-sm ml-4">Live Display Link</button>
+                <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
+                <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
+                <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="status-item">REG</span>
+                <span class="status-item">RÜCKGELD</span>
+                <span id="changeHeader" class="change-display">€0.00</span>
+                <span id="currentTime" class="status-item"></span>
+                <span id="currentDate" class="status-item"></span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Left Panel (Order List & Summary) -->
+            <div class="left-panel">
+                <div class="order-list-header">
+                    <span class="qty">Menge</span>
+                    <span class="name">Artikel</span>
+                    <span class="price">Preis</span>
+                </div>
+                <div class="order-list-container" id="orderList">
+                    <!-- Order items will be dynamically added here -->
+                </div>
+                <div class="summary-section">
+                    <div class="summary-item subtotal">
+                        <span>ZWISCHENSUMME</span>
+                        <span id="subtotalAmount">€0.00</span>
+                    </div>
+                    <div class="summary-item total">
+                        <span>TOTAL</span>
+                        <span id="totalAmount">€0.00</span>
+                    </div>
+                    <div class="summary-item cash">
+                        <span>BAR</span>
+                        <span id="cashAmount">€0.00</span>
+                    </div>
+                    <div class="summary-item change">
+                        <span>RÜCKGELD</span>
+                        <span id="changeAmount">€0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel (Categories/Products/Admin Config) -->
+            <div class="right-panel" id="rightPanel">
+                <!-- Content will be rendered dynamically here -->
+                <div id="loadingMessage" class="col-span-4 text-center text-gray-400 text-lg hidden">Lade Daten...</div>
+            </div>
+        </div>
+
+        <!-- Bottom Panel Container (includes input display and buttons) -->
+        <div class="bottom-panel-container">
+            <!-- Input Display Area with Clear Button -->
+            <div class="input-display-area">
+                <div id="inputDisplay" class="input-display-line"></div>
+                <button id="clearInputButton" class="clear-input-button">C</button>
+            </div>
+            
+            <!-- Keypad Area - initially visible -->
+            <div id="keypadArea" class="bottom-panel">
+                <!-- Row 1 -->
+                <button class="num-button" data-input="7">7</button>
+                <button class="num-button" data-input="8">8</button>
+                <button class="num-button" data-input="9">9</button>
+                <button class="num-button" data-input="0">0</button>
+                <button class="action-button yellow-func" data-input="X">X</button>
+
+                <!-- Row 2 -->
+                <button class="num-button" data-input="4">4</button>
+                <button class="num-button" data-input="5">5</button>
+                <button class="num-button" data-input="6">6</button>
+                <button class="num-button" data-input="00">00</button>
+                <button class="action-button purple-func" data-action="function" data-function="zws">ZWS</button>
+
+                <!-- Row 3 -->
+                <button class="num-button" data-input="1">1</button>
+                <button class="num-button" data-input="2">2</button>
+                <button class="num-button" data-input="3">3</button>
+                <button class="num-button decimal" data-input=".">,</button>
+                <button class="action-button bar-func" data-action="function" data-function="bar">BAR</button>
+            </div>
+
+            <!-- New Order Area - initially hidden -->
+            <div id="newOrderArea" class="hidden" style="height: calc(100% - 2.5rem - 0.7rem);">
+                <button id="newOrderButton" class="new-order-button">NEUE BESTELLUNG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Message Box (Kept for other messages like login success/failure, etc.) -->
+    <div id="messageBoxOverlay" class="message-box-overlay hidden">
+        <div class="message-box">
+            <h3 id="messageBoxTitle">Nachricht</h3>
+            <p id="messageBoxContent"></p>
+            <button id="messageBoxClose">OK</button>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginOverlay" class="admin-login-overlay hidden">
+        <div class="admin-login-box">
+            <h3>Admin Login</h3>
+            <input type="text" id="adminUsername" placeholder="Benutzername" value="admin">
+            <input type="password" id="adminPassword" placeholder="Passwort" value="admin123">
+            <button id="loginBtn">Login</button>
+            <button id="cancelLoginBtn">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- Kasse Select Modal (New) -->
+    <div id="kasseSelectOverlay" class="kasse-select-overlay">
+        <div class="kasse-select-box">
+            <h3>Kasse auswählen</h3>
+            <p>Bitte wählen Sie Ihre Kasse aus:</p>
+            <div class="kasse-buttons">
+                <button data-kasse-id="Kasse1">Kasse 1</button>
+                <button data-kasse-id="Kasse2">Kasse 2</button>
+                <button data-kasse-id="Kasse3">Kasse 3</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Display Link Modal -->
+    <div id="liveDisplayOverlay" class="live-display-overlay hidden">
+        <div class="live-display-box">
+            <h3>Live Display Link</h3>
+            <p>Öffne diesen Link auf dem zweiten iPad:</p>
+            <input type="text" id="liveDisplayUrl" readonly>
+            <button id="copyLiveDisplayUrlBtn">Link kopieren</button>
+            <button id="closeLiveDisplayBtn">Schließen</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase app and services
+        let app;
+        let db;
+        let auth;
+        let userId = 'anonymous'; // Default to anonymous until authenticated
+        let selectedKasseId = null; // Stores the selected Kasse ID
+
+        // Firebase Configuration - REPLACE with your actual Firebase project config
+        const firebaseConfig = {
+          apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
+          authDomain: "verkaufssoftware.firebaseapp.com",
+          projectId: "verkaufssoftware",
+          storageBucket: "verkaufssoftware.firebasestorage.app",
+          messagingSenderId: "268747007466",
+          appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
+          measurementId: "G-RMX5KJK543"
+        };
+        // For GitHub deployment, use your projectId as appId
+        const appId = firebaseConfig.projectId;
+
+
+        // DOM Elements
+        const orderList = document.getElementById('orderList');
+        const subtotalAmount = document.getElementById('subtotalAmount');
+        const totalAmount = document.getElementById('totalAmount');
+        const cashAmount = document.getElementById('cashAmount');
+        const changeAmount = document.getElementById('changeAmount');
+        const changeHeader = document.getElementById('changeHeader');
+        const currentDateElem = document.getElementById('currentDate');
+        const currentTimeElem = document.getElementById('currentTime');
+        const displayUserId = document.getElementById('displayUserId'); 
+        const cashierBadge = document.getElementById('cashierBadge'); // New: Kasse display
+
+        const messageBoxOverlay = document.getElementById('messageBoxOverlay');
+        const messageBoxTitle = document.getElementById('messageBoxTitle');
+        const messageBoxContent = document.getElementById('messageBoxContent');
+        const messageBoxClose = document.getElementById('messageBoxClose');
+
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+        const adminModeStatus = document.getElementById('adminModeStatus');
+        const adminLoginOverlay = document.getElementById('adminLoginOverlay');
+        const adminUsernameInput = document.getElementById('adminUsername');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const cancelLoginBtn = document.getElementById('cancelLoginBtn'); 
+
+        const kasseSelectOverlay = document.getElementById('kasseSelectOverlay'); // New: Kasse select modal
+        const kasseButtons = kasseSelectOverlay.querySelector('.kasse-buttons'); // Container for Kasse buttons
+
+        const rightPanel = document.getElementById('rightPanel');
+        const inputDisplay = document.getElementById('inputDisplay'); // Input display element
+        const clearInputButton = document.getElementById('clearInputButton'); // New C button
+
+        const keypadArea = document.getElementById('keypadArea'); // Numeric keypad and function buttons area
+        const newOrderArea = document.getElementById('newOrderArea'); // "Neue Bestellung" button area
+        const newOrderButton = document.getElementById('newOrderButton'); // The "Neue Bestellung" button
+
+        // Live Display Elements
+        const liveDisplayLinkBtn = document.getElementById('liveDisplayLinkBtn');
+        const liveDisplayOverlay = document.getElementById('liveDisplayOverlay');
+        const liveDisplayUrlInput = document.getElementById('liveDisplayUrl');
+        const copyLiveDisplayUrlBtn = document.getElementById('copyLiveDisplayUrlBtn');
+        const closeLiveDisplayBtn = document.getElementById('closeLiveDisplayBtn');
+        const loadingMessage = document.getElementById('loadingMessage'); // Loading message
+
+
+        // State variables
+        let currentOrder = [];
+        let multiplier = 1;
+        let currentInput = '0.00'; // Initialize with "0.00"
+        let cashGiven = 0;
+        let isAdminMode = false;
+        let currentCategory = null; // Stores the currently selected category for product display
+        let currentAdminView = 'main'; // Tracks the current admin view: 'main', 'categories', 'products', 'sellers'
+
+        // POS Data (now dynamically loaded from Firebase)
+        let posData = {
+            "categories": [],
+            "products": {}, // Products will be grouped by category ID in this object
+            "sellers": [] // New: Array to store seller data
+        };
+
+        // State to track if Firestore listeners have been set up
+        let firestoreListenersSetup = false;
+
+        // --- Firebase Initialization and Auth ---
+        async function initializeFirebase() {
+            try {
+                if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    console.log("Firebase initialized.");
+
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
+                            console.log("User authenticated. Current userId:", userId);
+                            // Only show Kasse selection if not already selected
+                            if (!selectedKasseId) {
+                                kasseSelectOverlay.classList.remove('hidden');
+                            } else {
+                                // If Kasse was already selected (e.g., page refresh), set up listeners directly
+                                if (!firestoreListenersSetup) {
+                                    console.log("Authentication successful, Kasse already selected, calling setupFirestoreListeners.");
+                                    setupFirestoreListeners();
+                                    firestoreListenersSetup = true;
+                                }
+                            }
+       
