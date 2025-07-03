@@ -474,67 +474,71 @@
 
 
         /* Wertbon Print Style */
-        @media print {
-            body > *:not(#print-area-temp) { /* Hide everything except the print area */
-                display: none !important;
-            }
-            #print-area-temp {
-                display: block !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 80mm; /* Standard receipt width */
-                padding: 10mm;
-                font-family: 'monospace';
-                font-size: 12px;
-                line-height: 1.4;
-                color: #000;
-                box-sizing: border-box;
-                page-break-after: always; /* Force a page break after each bon */
-            }
-            #print-area-temp:last-child {
-                page-break-after: auto; /* No page break after the very last bon */
-            }
-            #print-area-temp .wertbon-print-area {
-                width: 100%; /* Ensure inner bons take full width of print area */
-                page-break-inside: avoid; /* Avoid breaking individual bons across pages */
-            }
+/* Wertbon Print Style */
+@media print {
+    body > *:not(#print-area-temp) { /* Hide everything except the print area */
+        display: none !important;
+    }
+    #print-area-temp {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm; /* Standard receipt width */
+        padding: 10mm;
+        font-family: 'monospace';
+        font-size: 12px;
+        line-height: 1.4;
+        color: #000;
+        box-sizing: border-box;
+        /* --- HIER IST DIE WICHTIGSTE ÄNDERUNG --- */
+        page-break-after: always; /* Force a page break after each bon */
+        /* -------------------------------------- */
+    }
+    #print-area-temp:last-child {
+        page-break-after: auto; /* No page break after the very last bon */
+    }
+    #print-area-temp .wertbon-print-area {
+        width: 100%; /* Ensure inner bons take full width of print area */
+        page-break-inside: avoid; /* Avoid breaking individual bons across pages */
+    }
 
-            /* Specific styles for elements within wertbon-print-area when printing */
-            .wertbon-print-area h2,
-            .wertbon-print-area h3 {
-                text-align: center;
-                margin-bottom: 5px;
-            }
-            .wertbon-print-area img {
-                display: block; /* Ensure image is a block element for centering */
-                margin: 0 auto; /* Center image */
-            }
-            .wertbon-print-area p {
-                margin: 5px 0; /* Adjust paragraph margins */
-            }
-            .wertbon-print-area .dashed-line {
-                border-top: 1px dashed #000;
-                margin: 15px 0;
-            }
-            .wertbon-print-area .item-line {
-                font-size: 1.2em;
-                font-weight: bold;
-            }
-            .wertbon-print-area .italic-note {
-                font-style: italic;
-                font-size: 0.9em; /* Smaller for "Bspw." */
-            }
-            .wertbon-print-area .small-note {
-                font-size: 0.9em;
-                margin-top: 10px;
-            }
-            .wertbon-print-area .thank-you {
-                font-size: 1.1em;
-                font-weight: bold;
-                margin-top: 10px;
-            }
-        }
+    /* Specific styles for elements within wertbon-print-area when printing */
+    .wertbon-print-area h2,
+    .wertbon-print-area h3 {
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .wertbon-print-area img {
+        display: block; /* Ensure image is a block element for centering */
+        margin: 0 auto; /* Center image */
+    }
+    .wertbon-print-area p {
+        margin: 5px 0; /* Adjust paragraph margins */
+    }
+    .wertbon-print-area .dashed-line {
+        border-top: 1px dashed #000;
+        margin: 15px 0;
+    }
+    .wertbon-print-area .item-line {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+    .wertbon-print-area .italic-note {
+        font-style: italic;
+        font-size: 0.9em; /* Smaller for "Bspw." */
+    }
+    .wertbon-print-area .small-note {
+        font-size: 0.9em;
+        margin-top: 10px;
+    }
+    .wertbon-print-area .thank-you {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+}
+
     </style>
 </head>
 <body>
