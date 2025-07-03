@@ -3,298 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kassensystem</title>
+    <title>Live Bestellungsanzeige</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f0f0;
+            background-color: #1a1a1a;
+            color: #eee;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
             padding: 20px;
         }
-        .pos-container {
+        .display-container {
             width: 100%;
-            max-width: 1024px;
-            height: 768px; /* Fixed height for the entire POS system screen */
-            background-color: #1a1a1a;
+            max-width: 800px;
+            background-color: #2e2e2e;
             border-radius: 1.5rem;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            padding: 2rem;
+            text-align: center;
             border: 5px solid #000;
         }
-        .header-bar {
-            background-color: #383838;
-            color: #ccc;
-            padding: 0.75rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
-            border-top-left-radius: 1.2rem;
-            border-top-right-radius: 1.2rem;
-            border-bottom: 1px solid #4a4a4a;
-            height: 60px; /* Fixed height for the header */
-        }
-        .header-bar .user-badge {
-            background-color: #007bff;
-            color: white;
-            padding: 0.4rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .header-bar .status-item {
-            margin-left: 1.5rem;
-            font-weight: 600;
-        }
-        .header-bar .change-display {
-            color: #66ff66;
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-left: 0.5rem;
-        }
-        .main-content {
-            flex-grow: 1; /* Takes remaining height after header and footer */
-            display: flex;
-            padding: 1rem;
-            gap: 1rem;
-        }
-        .left-panel {
-            background-color: #2e2e2e;
-            width: 350px; /* Fixed width for the left panel */
-            flex-shrink: 0; /* Prevents it from shrinking */
-            border-radius: 0.75rem;
-            display: flex;
-            flex-direction: column;
-            padding: 1rem;
-            color: #eee;
-            border: 1px solid #4a4a4a;
-            height: 100%; /* Takes 100% of main-content's height */
-        }
-        .order-list-header {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0.25rem;
-            font-weight: bold;
-            border-bottom: 1px solid #5a5a5a;
-            margin-bottom: 0.5rem;
-            font-size: 0.85rem;
-            color: #bbb;
-            flex-shrink: 0; /* Prevent header from shrinking */
-        }
-        .order-list-container {
-            flex-grow: 1; /* Takes all available vertical space in left-panel */
-            overflow-y: auto; /* Enable scrolling for overflow */
-            margin-bottom: 0.5rem;
-            padding-bottom: 0.5rem;
-        }
-        .order-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.2rem 0.25rem;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: background-color 0.1s ease;
-        }
-        .order-item:hover {
-            background-color: #3b3b3b;
-        }
-        .order-item .qty { width: 10%; text-align: left; }
-        .order-item .name { width: 60%; text-align: left; }
-        .order-item .price { width: 30%; text-align: right; }
-        .summary-section {
-            padding-top: 1rem;
-            font-size: 1.1rem;
-            border-top: 1px solid #5a5a5a;
-            flex-shrink: 0; /* Prevent summary from shrinking */
-        }
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-        }
-        .summary-item.subtotal {
-            font-size: 1.1rem;
-            color: #ccc;
-        }
-        .summary-item.total {
-            font-weight: bold;
-            font-size: 1.5rem;
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
             color: #ffcc00;
+            margin-bottom: 1.5rem;
         }
-        .summary-item.cash {
-            font-size: 1.1rem;
-            color: #ccc;
+        .order-display-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 2rem 0;
+            border-top: 1px solid #5a5a5a;
+            border-bottom: 1px solid #5a5a5a;
+            max-height: 400px;
+            overflow-y: auto;
         }
-        .summary-item.change {
-            font-weight: bold;
+        .order-display-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
             font-size: 1.5rem;
-            color: #66ff66;
+            border-bottom: 1px dashed #4a4a4a;
         }
-        .right-panel {
-            flex: 1; /* Takes all remaining width */
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.7rem;
-            align-content: start;
-            height: 100%; /* Takes 100% of main-content's height */
+        .order-display-item:last-child {
+            border-bottom: none;
         }
-        .product-button {
-            background-color: #555;
-            color: white;
-            padding: 1rem 0.5rem;
-            border-radius: 0.75rem;
-            text-align: center;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1.2;
-            height: 75px;
-        }
-        .product-button:hover {
-            background-color: #666;
-        }
-        /* Color classes for dynamic categories */
-        .product-button.yellow { background-color: #ffc107; color: #333; }
-        .product-button.orange { background-color: #fd7e14; }
-        .product-button.purple { background-color: #6f42c1; }
-        .product-button.green { background-color: #28a745; }
-        .product-button.blue { background-color: #007bff; }
-        .product-button.red { background-color: #dc3545; }
-        .product-button.light-blue { background-color: #17a2b8; }
-        .product-button.pink { background-color: #e83e8c; }
-        .product-button.gray { background-color: #6c757d; }
-
-
-        .bottom-panel-container {
-            background-color: #2e2e2e;
-            padding: 1rem;
-            border-bottom-left-radius: 1.2rem;
-            border-bottom-right-radius: 1.2rem;
-            color: white;
-            border-top: 1px solid #4a4a4a;
-            height: 300px; /* Sufficient height for dynamic content */
-        }
-
-        .input-display-area {
-            display: flex;
-            align-items: center;
-            background-color: #1a1a1a;
-            border-radius: 0.5rem;
-            margin-bottom: 0.7rem;
-            border: 1px solid #4a4a4a;
-            min-height: 2.5rem; /* ~40px */
-            padding-right: 1rem; /* Padding for the display text */
-        }
-
-        .input-display-line {
-            flex-grow: 1; /* Takes up remaining space */
-            color: #66ff66;
-            font-size: 2rem;
+        .order-display-item .qty {
             font-weight: bold;
+            width: 15%;
+            text-align: left;
+        }
+        .order-display-item .name {
+            width: 60%;
+            text-align: left;
+        }
+        .order-display-item .price {
+            width: 25%;
             text-align: right;
-            padding: 0.5rem 0; /* Padding handled by parent */
-        }
-
-        .clear-input-button {
-            background-color: #dc3545; /* Red color for Clear */
-            color: white;
             font-weight: bold;
-            font-size: 1.2rem;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            margin-left: 0.5rem; /* Space between button and display */
-            height: 40px; /* Match height of input display roughly */
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
-        .clear-input-button:hover {
-            background-color: #c82333;
-        }
-
-        .bottom-panel {
-            display: grid;
-            grid-template-columns: repeat(3, 0.8fr) 1fr 1.2fr;
-            gap: 0.7rem;
-        }
-        
-        .num-button, .action-button {
-            height: 60px; /* Smaller consistent height for all buttons */
-            border-radius: 0.75rem; /* Ensure rounded corners for consistency */
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .total-display {
+            font-size: 2.5rem;
             font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            padding: 0.5rem; /* Reduced padding for smaller buttons */
+            color: #66ff66;
+            margin-top: 1.5rem;
         }
-
-        .num-button {
-            background-color: #505050;
-            font-size: 1.2rem; /* Smaller font size for numbers */
-        }
-        .num-button:hover {
-            background-color: #606060;
-        }
-        .num-button.decimal {
-            font-size: 1.8rem; /* Slightly larger font for decimal comma */
-        }
-
-        .action-button {
-            background-color: #444;
-            font-size: 1.2rem; /* Standard font size for action buttons (now smaller overall) */
-        }
-        .action-button:hover {
-            background-color: #555;
-        }
-
-        .action-button[data-input="X"],
-        .action-button[data-action="function"][data-function="zws"],
-        .action-button[data-action="function"][data-function="bar"] {
-            font-size: 1.6rem; /* Larger font size to make them stand out */
-        }
-        
-        .action-button.yellow-func { background-color: #ffc107; color: #333; }
-        .action-button.purple-func { background-color: #6f42c1; }
-        .action-button.bar-func { background-color: #66ff66; color: #333; }
-
-        /* New Order Button Styling */
-        .new-order-button {
-            background-color: #28a745; /* Green color */
-            color: white;
-            font-weight: bold;
-            font-size: 2rem;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            width: 100%;
-            height: 100%; /* Take full height of its container */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .new-order-button:hover {
-            background-color: #218838;
-        }
-
-        /* Message Box Styling */
-        .message-box-overlay, .admin-login-overlay, .live-display-overlay {
+        .message-box-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -306,7 +86,7 @@
             align-items: center;
             z-index: 1000;
         }
-        .message-box, .admin-login-box, .live-display-box {
+        .message-box {
             background-color: #333;
             color: white;
             padding: 2rem;
@@ -317,16 +97,16 @@
             width: 90%;
             border: 2px solid #555;
         }
-        .message-box h3, .admin-login-box h3, .live-display-box h3 {
+        .message-box h3 {
             font-size: 1.8rem;
             margin-bottom: 1rem;
             color: #ffcc00;
         }
-        .message-box p, .admin-login-box p, .live-display-box p {
+        .message-box p {
             font-size: 1.1rem;
             margin-bottom: 2rem;
         }
-        .message-box button, .admin-login-box button, .live-display-box button {
+        .message-box button {
             background-color: #007bff;
             color: white;
             padding: 0.75rem 1.5rem;
@@ -334,352 +114,18 @@
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
-        .message-box button:hover, .admin-login-box button:hover, .live-display-box button:hover {
+        .message-box button:hover {
             background-color: #0056b3;
-        }
-        .admin-login-box input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #444;
-            color: white;
-            font-size: 1rem;
-        }
-        .admin-login-box button {
-            margin: 0 10px;
-        }
-        .live-display-box input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #444;
-            color: white;
-            font-size: 1rem;
-            text-align: center;
-        }
-
-
-        /* Admin Configuration Panel Specific Styles */
-        .admin-config-panel {
-            grid-template-columns: repeat(2, 1fr);
-            overflow-y: auto;
-        }
-        .admin-config-section {
-            background-color: #3b3b3b;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        .admin-config-section h4 {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            color: #ffcc00;
-        }
-        .admin-config-section input, .admin-config-section select {
-            width: calc(100% - 20px);
-            padding: 8px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background-color: #444;
-            color: white;
-        }
-        .admin-config-section button {
-            background-color: #28a745;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            margin-top: 5px;
-            margin-right: 5px;
-        }
-        .admin-config-section button.delete {
-            background-color: #dc3545;
-        }
-        .admin-config-section button:hover {
-            background-color: #218838;
-        }
-        .admin-config-section button.delete:hover {
-            background-color: #c82333;
-        }
-        .admin-config-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #555;
-            border-radius: 5px;
-            padding: 5px;
-            margin-top: 10px;
-        }
-        .admin-config-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px;
-            border-bottom: 1px solid #4a4a4a;
-        }
-        .admin-config-item:last-child {
-            border-bottom: none;
-        }
-        .admin-config-item button {
-            padding: 3px 8px;
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
-
-        /* Admin Main Menu specific styles */
-        .admin-main-menu {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 1.5rem;
-            height: 100%; /* Take full height of right-panel */
-        }
-        .admin-main-menu .menu-button {
-            width: 80%;
-            max-width: 300px;
-            height: 80px;
-            font-size: 1.5rem;
-            background-color: #007bff;
-            color: white;
-            border-radius: 1rem;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .admin-main-menu .menu-button:hover {
-            background-color: #0056b3;
-        }
-
-
-        /* Receipt Print Style */
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            .receipt-print-area, .receipt-print-area * {
-                visibility: visible;
-            }
-            .receipt-print-area {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 80mm; /* Common receipt printer width */
-                padding: 10mm;
-                font-family: 'monospace';
-                font-size: 12px;
-                line-height: 1.4;
-                color: #000;
-                box-sizing: border-box;
-            }
-            .receipt-print-area h2, .receipt-print-area h3 {
-                text-align: center;
-                margin-bottom: 5px;
-            }
-            .receipt-print-area h2 {
-                font-size: 18px; /* Larger for the logo-like header */
-                margin-bottom: 10px;
-            }
-            .receipt-print-area h3 {
-                font-size: 14px;
-                margin-bottom: 10px;
-            }
-            .receipt-print-area .info-line {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 2px;
-            }
-            .receipt-print-area .separator {
-                border-top: 1px dashed #000; /* Dashed line for items */
-                margin: 5px 0;
-            }
-            .receipt-print-area .solid-separator {
-                border-top: 2px solid #000; /* Solid line for totals */
-                margin: 5px 0;
-            }
-            .receipt-print-area table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 10px;
-            }
-            .receipt-print-area th, .receipt-print-area td {
-                padding: 2px 0;
-                text-align: left;
-            }
-            .receipt-print-area th.right-align, .receipt-print-area td.right-align {
-                text-align: right;
-            }
-            .receipt-print-area th.center-align, .receipt-print-area td.center-align {
-                text-align: center;
-            }
-            .receipt-print-area .item-row td {
-                border-bottom: 1px dashed #ccc;
-            }
-            .receipt-print-area .summary-row td {
-                font-weight: bold;
-            }
-            .receipt-print-area .thank-you {
-                text-align: center;
-                margin-top: 15px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            .receipt-print-area .total-final {
-                font-size: 16px;
-                font-weight: bold;
-                margin-top: 10px;
-            }
-
-            /* Wertbon Print Style */
-            .wertbon-print-area, .wertbon-print-area * {
-                visibility: visible;
-            }
-            .wertbon-print-area {
-                position: relative; 
-                left: 0;
-                top: 0;
-                width: 80mm; /* Common receipt printer width */
-                padding: 10mm;
-                font-family: 'monospace';
-                font-size: 12px;
-                line-height: 1.4;
-                color: #000;
-                box-sizing: border-box;
-                page-break-after: always; /* Force a page break after each bon */
-            }
-            .wertbon-print-area:last-child {
-                page-break-after: auto; /* No page break after the very last bon */
-            }
-            .wertbon-print-area h2, .wertbon-print-area h3 {
-                text-align: center;
-                margin-bottom: 5px;
-            }
-            .wertbon-print-area h2 {
-                font-size: 18px; /* Larger for the logo-like header */
-                margin-bottom: 10px;
-            }
-            .wertbon-print-area h3 {
-                font-size: 14px;
-                margin-bottom: 10px;
-            }
-            .wertbon-print-area .info-line {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 2px;
-            }
-            .wertbon-print-area .item-name {
-                font-size: 20px;
-                font-weight: bold;
-                text-align: center;
-                margin: 20px 0;
-                border: 2px solid #000; /* Border around the item name */
-                padding: 10px;
-            }
-            .wertbon-print-area .thank-you {
-                text-align: center;
-                margin-top: 15px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            .wertbon-print-area .solid-separator {
-                border-top: 2px solid #000; /* Solid line */
-                margin: 5px 0;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="pos-container">
-        <div class="header-bar">
-            <div class="flex items-center gap-2">
-                <span class="user-badge">Frau Becker</span>
-                <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
-                <button id="liveDisplayLinkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-full text-sm ml-4">Live Display Link</button>
-                <button id="adminLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full text-sm ml-4">Admin Login</button>
-                <button id="adminLogoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-sm ml-4 hidden">Admin Logout</button>
-                <span id="adminModeStatus" class="text-green-400 text-sm ml-2 hidden">Admin-Modus AN</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <span class="status-item">REG</span>
-                <span class="status-item">RÜCKGELD</span>
-                <span id="changeHeader" class="change-display">€0.00</span>
-                <span id="currentTime" class="status-item"></span>
-                <span id="currentDate" class="status-item"></span>
-            </div>
-        </div>
-
-        <div class="main-content">
-            <div class="left-panel">
-                <div class="order-list-header">
-                    <span class="qty">Menge</span>
-                    <span class="name">Artikel</span>
-                    <span class="price">Preis</span>
-                </div>
-                <div class="order-list-container" id="orderList">
-                    </div>
-                <div class="summary-section">
-                    <div class="summary-item subtotal">
-                        <span>ZWISCHENSUMME</span>
-                        <span id="subtotalAmount">€0.00</span>
-                    </div>
-                    <div class="summary-item total">
-                        <span>TOTAL</span>
-                        <span id="totalAmount">€0.00</span>
-                    </div>
-                    <div class="summary-item cash">
-                        <span>BAR</span>
-                        <span id="cashAmount">€0.00</span>
-                    </div>
-                    <div class="summary-item change">
-                        <span>RÜCKGELD</span>
-                        <span id="changeAmount">€0.00</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="right-panel" id="rightPanel">
-                <div id="loadingMessage" class="col-span-4 text-center text-gray-400 text-lg hidden">Lade Daten...</div>
-            </div>
-        </div>
-
-        <div class="bottom-panel-container">
-            <div class="input-display-area">
-                <div id="inputDisplay" class="input-display-line"></div>
-                <button id="clearInputButton" class="clear-input-button">C</button>
-            </div>
-            
-            <div id="keypadArea" class="bottom-panel">
-                <button class="num-button" data-input="7">7</button>
-                <button class="num-button" data-input="8">8</button>
-                <button class="num-button" data-input="9">9</button>
-                <button class="num-button" data-input="0">0</button>
-                <button class="action-button yellow-func" data-input="X">X</button>
-
-                <button class="num-button" data-input="4">4</button>
-                <button class="num-button" data-input="5">5</button>
-                <button class="num-button" data-input="6">6</button>
-                <button class="num-button" data-input="00">00</button>
-                <button class="action-button purple-func" data-action="function" data-function="zws">ZWS</button>
-
-                <button class="num-button" data-input="1">1</button>
-                <button class="num-button" data-input="2">2</button>
-                <button class="num-button" data-input="3">3</button>
-                <button class="num-button decimal" data-input=".">,</button>
-                <button class="action-button bar-func" data-action="function" data-function="bar">BAR</button>
-            </div>
-
-            <div id="newOrderArea" class="hidden" style="height: calc(100% - 2.5rem - 0.7rem); display: flex; gap: 1rem; padding: 1rem; box-sizing: border-box;">
-                <button id="newOrderButton" class="new-order-button flex-1">NEUE BESTELLUNG</button>
-                <button id="printWertbonsButton" class="new-order-button flex-1 bg-blue-600 hover:bg-blue-700">WERTBONS DRUCKEN</button>
-            </div>
-        </div>
+    <div class="display-container">
+        <h1 id="displayTitle">Aktuelle Bestellung</h1>
+        <ul id="liveOrderList" class="order-display-list">
+            </ul>
+        <div id="liveOrderTotal" class="total-display">TOTAL: €0.00</div>
+        <p class="text-sm text-gray-400 mt-4" id="displayAppUserId">[UserID: Laden...]</p>
     </div>
 
     <div id="messageBoxOverlay" class="message-box-overlay hidden">
@@ -690,1110 +136,166 @@
         </div>
     </div>
 
-    <div id="adminLoginOverlay" class="admin-login-overlay hidden">
-        <div class="admin-login-box">
-            <h3>Admin Login</h3>
-            <input type="text" id="adminUsername" placeholder="Benutzername" value="admin">
-            <input type="password" id="adminPassword" placeholder="Passwort" value="admin123">
-            <button id="loginBtn">Login</button>
-            <button id="cancelLoginBtn">Abbrechen</button>
-        </div>
-    </div>
-
-    <div id="liveDisplayOverlay" class="live-display-overlay hidden">
-        <div class="live-display-box">
-            <h3>Live Display Link</h3>
-            <p>Öffne diesen Link auf dem zweiten iPad:</p>
-            <input type="text" id="liveDisplayUrl" readonly>
-            <button id="copyLiveDisplayUrlBtn">Link kopieren</button>
-            <button id="closeLiveDisplayBtn">Schließen</button>
-        </div>
-    </div>
-
     <script type="module">
-        // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase app and services
-        let app;
-        let db;
-        let auth;
-        let userId = 'anonymous'; // Default to anonymous until authenticated
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Configuration - REPLACE with your actual Firebase project config
         const firebaseConfig = {
-          apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
-          authDomain: "verkaufssoftware.firebaseapp.com",
-          projectId: "verkaufssoftware",
-          storageBucket: "verkaufssoftware.firebasestorage.app",
-          messagingSenderId: "268747007466",
-          appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
-          measurementId: "G-RMX5KJK543"
+            apiKey: "AIzaSyAyO_3QNTZq2IOdvBMm6ZLHYFv96H9F50I",
+            authDomain: "verkaufssoftware.firebaseapp.com",
+            projectId: "verkaufssoftware",
+            storageBucket: "verkaufssoftware.firebasestorage.app",
+            messagingSenderId: "268747007466",
+            appId: "1:268747007466:web:c84a529f27a0f6849a3e93",
+            measurementId: "G-RMX5KJK543"
         };
         // For GitHub deployment, use your projectId as appId
         const appId = firebaseConfig.projectId;
 
+        let app;
+        let db;
+        let auth;
+        let displayUserId; // This will hold the actual Firebase User ID from auth state
+        let currentRegisterId = 'register1'; // Default register ID for display
 
         // DOM Elements
-        const orderList = document.getElementById('orderList');
-        const subtotalAmount = document.getElementById('subtotalAmount');
-        const totalAmount = document.getElementById('totalAmount');
-        const cashAmount = document.getElementById('cashAmount');
-        const changeAmount = document.getElementById('changeAmount');
-        const changeHeader = document.getElementById('changeHeader');
-        const currentDateElem = document.getElementById('currentDate');
-        const currentTimeElem = document.getElementById('currentTime');
-        const displayUserId = document.getElementById('displayUserId'); // New: Element to display userId
+        const liveOrderList = document.getElementById('liveOrderList');
+        const liveOrderTotal = document.getElementById('liveOrderTotal');
+        const displayTitle = document.getElementById('displayTitle');
+        const displayAppUserId = document.getElementById('displayAppUserId'); // Element to show the user ID
 
         const messageBoxOverlay = document.getElementById('messageBoxOverlay');
         const messageBoxTitle = document.getElementById('messageBoxTitle');
         const messageBoxContent = document.getElementById('messageBoxContent');
         const messageBoxClose = document.getElementById('messageBoxClose');
 
-        const adminLoginBtn = document.getElementById('adminLoginBtn');
-        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
-        const adminModeStatus = document.getElementById('adminModeStatus');
-        const adminLoginOverlay = document.getElementById('adminLoginOverlay');
-        const adminUsernameInput = document.getElementById('adminUsername');
-        const adminPasswordInput = document.getElementById('adminPassword');
-        const loginBtn = document.getElementById('loginBtn');
-        const cancelLoginBtn = document.getElementById('cancelLoginBtn'); 
 
-        const rightPanel = document.getElementById('rightPanel');
-        const inputDisplay = document.getElementById('inputDisplay'); // Input display element
-        const clearInputButton = document.getElementById('clearInputButton'); // New C button
+        // Function to parse URL parameters
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
 
-        const keypadArea = document.getElementById('keypadArea'); // Numeric keypad and function buttons area
-        const newOrderArea = document.getElementById('newOrderArea'); // "Neue Bestellung" button area
-        const newOrderButton = document.getElementById('newOrderButton'); // The "Neue Bestellung" button
-        const printWertbonsButton = document.getElementById('printWertbonsButton'); // New Wertbons button
-
-        // Live Display Elements
-        const liveDisplayLinkBtn = document.getElementById('liveDisplayLinkBtn');
-        const liveDisplayOverlay = document.getElementById('liveDisplayOverlay');
-        const liveDisplayUrlInput = document.getElementById('liveDisplayUrl');
-        const copyLiveDisplayUrlBtn = document.getElementById('copyLiveDisplayUrlBtn');
-        const closeLiveDisplayBtn = document.getElementById('closeLiveDisplayBtn');
-        const loadingMessage = document.getElementById('loadingMessage'); // Loading message
-
-
-        // State variables
-        let currentOrder = [];
-        let currentInput = '0.00'; // Initialize with "0.00"
-        let multiplier = 1;
-        let cashGiven = 0;
-        let isAdminMode = false;
-        let currentCategory = null; // Stores the currently selected category for product display
-        let currentAdminView = 'main'; // Tracks the current admin view: 'main', 'categories', 'products', 'sellers'
-
-        // POS Data (now dynamically loaded from Firebase)
-        let posData = {
-            "categories": [],
-            "products": {}, // Products will be grouped by category ID in this object
-            "sellers": [] // New: Array to store seller data
-        };
-
-        // State to track if Firestore listeners have been set up
-        let firestoreListenersSetup = false;
-
-        // --- Firebase Initialization and Auth ---
-        async function initializeFirebase() {
+        // --- Firebase Initialization and Listeners ---
+        async function initializeFirebaseAndListeners() {
             try {
                 if (firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
                     app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
 
-                    console.log("Firebase initialized.");
+                    console.log("Firebase initialized on display page.");
+
+                    // Get registerId from URL parameters
+                    const paramRegisterId = getUrlParameter('registerId');
+                    if (paramRegisterId) {
+                        currentRegisterId = paramRegisterId;
+                        displayTitle.textContent = `Aktuelle Bestellung - ${currentRegisterId.replace('register', 'Kasse ')}`;
+                    } else {
+                        displayTitle.textContent = `Aktuelle Bestellung - Kasse 1 (Standard)`;
+                    }
 
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
-                            userId = user.uid;
-                            displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
-                            console.log("User authenticated. Current userId:", userId);
-                            if (!firestoreListenersSetup) {
-                                console.log("Authentication successful, calling setupFirestoreListeners.");
-                                setupFirestoreListeners();
-                                firestoreListenersSetup = true;
-                            }
+                            displayUserId = user.uid;
+                            displayAppUserId.textContent = `[UserID: ${displayUserId}] (Register: ${currentRegisterId.replace('register', 'Kasse ')})`;
+                            console.log("Display page user authenticated. Current userId:", displayUserId);
+                            setupLiveOrderListener();
                         } else {
-                            if (!firestoreListenersSetup) {
-                                try {
-                                    console.log("No user signed in, attempting signInAnonymously...");
-                                    await signInAnonymously(auth);
-                                } catch (anonSignInError) {
-                                    console.error("Anonymous sign-in failed:", anonSignInError);
-                                    userId = 'anonymous_fallback';
-                                    displayUserId.textContent = `[UserID: ${userId} (Fehler)] (Kat./Prod. Geteilt)`;
-                                    console.warn("Authentication failed, proceeding without persistent data storage for categories/products/sellers.");
-                                    renderCategories();
-                                    renderOrder();
-                                    inputDisplay.textContent = currentInput;
-                                    firestoreListenersSetup = true;
-                                }
+                            try {
+                                console.log("No user signed in on display page, attempting signInAnonymously...");
+                                await signInAnonymously(auth);
+                            } catch (anonSignInError) {
+                                console.error("Anonymous sign-in failed on display page:", anonSignInError);
+                                displayUserId = 'anonymous_fallback';
+                                displayAppUserId.textContent = `[UserID: ${displayUserId} (Fehler)] (Register: ${currentRegisterId.replace('register', 'Kasse ')})`;
+                                showMessageBox('Fehler', 'Anzeigefehler: Konnte keine Verbindung zur Firebase-Authentifizierung herstellen.');
+                                renderLiveOrder({ items: [], total: 0 }); // Clear on error
                             }
                         }
                     });
                 } else {
-                    console.warn("Firebase configuration not provided or incomplete. Data will not be persisted.");
-                    displayUserId.textContent = `[UserID: Nicht konfiguriert] (Kat./Prod. Geteilt)`;
-                    renderCategories();
-                    renderOrder();
-                    inputDisplay.textContent = currentInput;
+                    console.warn("Firebase configuration not provided or incomplete on display page. Live order will not be displayed.");
+                    displayAppUserId.textContent = `[UserID: Nicht konfiguriert]`;
+                    showMessageBox('Fehler', 'Anzeigefehler: Firebase-Konfiguration fehlt.');
+                    renderLiveOrder({ items: [], total: 0 }); // Clear on error
                 }
             } catch (error) {
-                console.error("Fatal error during Firebase app initialization:", error);
-                showMessageBox('Fehler', 'Schwerwiegender Fehler beim Initialisieren von Firebase. Die App wird ohne Datenspeicherung gestartet.');
-                displayUserId.textContent = `[UserID: Fehler] (Kat./Prod. Geteilt)`;
-                renderCategories();
-                renderOrder();
-                inputDisplay.textContent = currentInput;
+                console.error("Fatal error during Firebase app initialization on display page:", error);
+                showMessageBox('Fehler', 'Schwerwiegender Fehler beim Initialisieren von Firebase. Live-Bestellung kann nicht geladen werden.');
+                renderLiveOrder({ items: [], total: 0 }); // Clear on error
             }
         }
 
-        // --- Firestore Data Listeners ---
-        function setupFirestoreListeners() {
-            if (!db || !auth.currentUser || auth.currentUser.uid === 'anonymous_fallback') {
-                console.warn("Firestore, current user, or valid user ID not available at listener setup. Aborting listener setup.");
-                loadingMessage.classList.add('hidden');
+        function setupLiveOrderListener() {
+            if (!db) {
+                console.warn("Firestore not available for live order listener.");
                 return;
             }
-            const currentAuthedUserId = auth.currentUser.uid;
-            console.log("Proceeding with Firestore listeners. Auth User ID:", currentAuthedUserId);
-
-            loadingMessage.classList.remove('hidden');
-            rightPanel.innerHTML = '';
-
-            // Listener for Categories (Public/Shared)
-            const categoriesRef = collection(db, `artifacts/${appId}/public/data/categories`);
-            onSnapshot(categoriesRef, (snapshot) => {
-                const fetchedCategories = [];
-                snapshot.forEach(doc => {
-                    fetchedCategories.push({ id: doc.id, ...doc.data() });
-                });
-                posData.categories = fetchedCategories;
-                console.log("onSnapshot for categories triggered. Fetched categories:", fetchedCategories);
-                if (!isAdminMode) {
-                    renderCategories();
+            // Listen to the specific register's live order document
+            const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, currentRegisterId);
+            onSnapshot(liveOrderDocRef, (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    const orderData = docSnapshot.data();
+                    console.log(`Live order for ${currentRegisterId} updated:`, orderData);
+                    renderLiveOrder(orderData);
                 } else {
-                    if (currentAdminView === 'categories') {
-                        console.log("Calling renderAdminCategoryManagement due to category snapshot update.");
-                        renderAdminCategoryManagement();
-                    } else if (currentAdminView === 'products') {
-                        console.log("Calling renderAdminProductManagement due to category snapshot update (for dropdown).");
-                        renderAdminProductManagement();
-                    }
+                    console.log(`No live order data for ${currentRegisterId}. Clearing display.`);
+                    renderLiveOrder({ items: [], total: 0 }); // Clear display if no data
                 }
-                loadingMessage.classList.add('hidden');
             }, (error) => {
-                console.error("Error fetching categories:", error);
-                showMessageBox('Fehler', 'Kategorien konnten nicht geladen werden.');
-                loadingMessage.classList.add('hidden');
-            });
-
-            // Listener for Products (Public/Shared)
-            const productsRef = collection(db, `artifacts/${appId}/public/data/products`);
-            onSnapshot(productsRef, (snapshot) => {
-                const fetchedProducts = {};
-                snapshot.forEach(doc => {
-                    const productData = doc.data();
-                    if (productData.categoryId) {
-                        if (!fetchedProducts[productData.categoryId]) {
-                            fetchedProducts[productData.categoryId] = [];
-                        }
-                        fetchedProducts[productData.categoryId].push({ id: doc.id, name: productData.name, price: productData.price });
-                    }
-                });
-                posData.products = fetchedProducts;
-                console.log("onSnapshot for products triggered. Fetched products:", fetchedProducts);
-                if (!isAdminMode) {
-                    if (currentCategory) {
-                        renderProducts(currentCategory);
-                    } else {
-                        renderCategories();
-                    }
-                } else {
-                    if (currentAdminView === 'products') {
-                        console.log("Calling renderAdminProductManagement due to product snapshot update.");
-                        renderAdminProductManagement();
-                    }
-                }
-                loadingMessage.classList.add('hidden');
-            }, (error) => {
-                console.error("Error fetching products:", error);
-                showMessageBox('Fehler', 'Produkte konnten nicht geladen werden.');
-                loadingMessage.classList.add('hidden');
-            });
-
-            // Listener for Sellers (Private/User-specific)
-            const sellersRef = collection(db, `artifacts/${appId}/users/${currentAuthedUserId}/sellers`);
-            onSnapshot(sellersRef, (snapshot) => {
-                const fetchedSellers = [];
-                snapshot.forEach(doc => {
-                    fetchedSellers.push({ id: doc.id, ...doc.data() });
-                });
-                posData.sellers = fetchedSellers;
-                console.log("onSnapshot for sellers triggered. Fetched sellers:", fetchedSellers);
-                if (isAdminMode && currentAdminView === 'sellers') {
-                    console.log("Calling renderAdminSellerManagement due to seller snapshot update.");
-                    renderAdminSellerManagement();
-                }
-                loadingMessage.classList.add('hidden');
-            }, (error) => {
-                console.error("Error fetching sellers:", error);
-                showMessageBox('Fehler', 'Verkäufer konnten nicht geladen werden.');
-                loadingMessage.classList.add('hidden');
+                console.error("Error fetching live order:", error);
+                showMessageBox('Fehler', 'Live-Bestellung konnte nicht geladen werden: ' + error.message);
+                renderLiveOrder({ items: [], total: 0 }); // Clear on error
             });
         }
 
-        // --- Firebase Data Operations (CRUD) ---
-
-        /**
-         * Saves the current order for live display on a second screen.
-         * This data is public.
-         */
-        async function saveLiveOrderToFirestore() {
-            if (!db || !auth.currentUser) {
-                console.warn("Firestore or user not authenticated. Live order cannot be saved.");
-                return;
-            }
-            try {
-                // Combine relevant order data for display
-                const orderToSave = {
-                    items: currentOrder.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })),
-                    subtotal: parseFloat(subtotalAmount.textContent.replace('€', '')),
-                    total: parseFloat(totalAmount.textContent.replace('€', '')),
-                    timestamp: Date.now() // Add a timestamp for freshness
-                };
-                // Save to a fixed public document
-                const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, 'liveOrderDisplay');
-                await setDoc(liveOrderDocRef, orderToSave);
-                console.log("Live order saved to Firestore:", orderToSave);
-            } catch (e) {
-                console.error("Error saving live order:", e);
-            }
-        }
-
-        /**
-         * Adds or updates a category in Firestore (Public/Shared).
-         * @param {object} category - { id, name, color, standName }
-         */
-        async function saveCategoryToFirestore(category) {
-            if (!db || !auth.currentUser) {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Kategoriedaten können nicht gespeichert werden.');
-                return;
-            }
-            try {
-                console.log("Attempting to save category:", category, "to public Firestore path.");
-                const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, category.id);
-                await setDoc(categoryDocRef, { name: category.name, color: category.color, standName: category.standName || '' });
-                console.log("Category saved successfully to public Firestore.");
-            } catch (e) {
-                console.error("Error saving category: ", e);
-                showMessageBox('Fehler', `Fehler beim Speichern der Kategorie: ${e.message}`);
-            }
-        }
-
-        /**
-         * Deletes a category from Firestore (Public/Shared).
-         * @param {string} categoryId - The ID of the category to delete.
-         */
-        async function deleteCategoryFromFirestore(categoryId) {
-            if (!db || !auth.currentUser) {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Kategoriedaten können nicht gelöscht werden.');
-                return;
-            }
-            try {
-                const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, categoryId);
-                await deleteDoc(categoryDocRef);
-                console.log("Category deleted successfully from public Firestore:", categoryId);
-
-                // Also delete associated products from the public path
-                const productsToDeleteQuery = query(collection(db, `artifacts/${appId}/public/data/products`), where("categoryId", "==", categoryId));
-                const productSnapshot = await getDocs(productsToDeleteQuery);
-                const deletePromises = [];
-                productSnapshot.forEach((productDoc) => {
-                    deletePromises.push(deleteDoc(productDoc.ref));
-                });
-                await Promise.all(deletePromises);
-                console.log("Associated products deleted from public Firestore for category:", categoryId);
-            } catch (e) {
-                console.error("Error deleting category: ", e);
-                showMessageBox('Fehler', `Fehler beim Löschen der Kategorie: ${e.message}`);
-            }
-        }
-
-        /**
-         * Adds or updates a product in Firestore (Public/Shared).
-         * @param {object} product - { categoryId, name, price }
-         */
-        async function saveProductToFirestore(product) {
-            if (!db || !auth.currentUser) {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Produktdaten können nicht gespeichert werden.');
-                return;
-            }
-            try {
-                console.log("Attempting to save product:", product, "to public Firestore path.");
-                // Auto-generate ID for new products
-                const productDocRef = doc(collection(db, `artifacts/${appId}/public/data/products`));
-                await setDoc(productDocRef, product);
-                console.log("Product saved successfully to public Firestore.");
-            } catch (e) {
-                console.error("Error saving product: ", e);
-                showMessageBox('Fehler', `Fehler beim Speichern des Produkts: ${e.message}`);
-            }
-        }
-
-        /**
-         * Deletes a product from Firestore (Public/Shared).
-         * @param {string} productId - The ID of the product to delete.
-         */
-        async function deleteProductFromFirestore(productId) {
-            if (!db || !auth.currentUser) {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Produktdaten können nicht gelöscht werden.');
-                return;
-            }
-            try {
-                const productDocRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
-                await deleteDoc(productDocRef);
-                console.log("Product deleted successfully from public Firestore:", productId);
-            } catch (e) {
-                console.error("Error deleting product: ", e);
-                showMessageBox('Fehler', `Fehler beim Löschen des Produkts: ${e.message}`);
-            }
-        }
-
-        /**
-         * Adds or updates a seller in Firestore (Private/User-specific).
-         * @param {object} seller - { id, name }
-         */
-        async function saveSellerToFirestore(seller) {
-            if (!db || !auth.currentUser) {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Verkäuferdaten können nicht gespeichert werden.');
-                return;
-            }
-            try {
-                const sellerDocRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}/sellers`, seller.id);
-                await setDoc(sellerDocRef, { name: seller.name });
-                console.log("Seller saved successfully to private Firestore.");
-            } catch (e) {
-                console.error("Error saving seller: ", e);
-                showMessageBox('Fehler', `Fehler beim Speichern des Verkäufers: ${e.message}`);
-            }
-        }
-
-        /**
-         * Deletes a seller from Firestore (Private/User-specific).
-         * @param {string} sellerId - The ID of the seller to delete.
-         */
-        async function deleteSellerFromFirestore(sellerId) {
-            if (!db || !auth.currentUser) {
-                showMessageBox('Fehler', 'Datenbank ist nicht bereit oder Sie sind nicht authentifiziert. Verkäuferdaten können nicht gelöscht werden.');
-                return;
-            }
-            try {
-                const sellerDocRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}/sellers`, sellerId);
-                await deleteDoc(sellerDocRef);
-                console.log("Seller deleted successfully from private Firestore:", sellerId);
-            } catch (e) {
-                console.error("Error deleting seller: ", e);
-                showMessageBox('Fehler', `Fehler beim Löschen des Verkäufers: ${e.message}`);
-            }
-        }
-
-
-        // --- Core POS Logic ---
-
-        function addProductToOrder(product) {
-            const existingItem = currentOrder.find(item => item.id === product.id);
-            if (existingItem) {
-                existingItem.quantity += multiplier;
-            } else {
-                currentOrder.push({ ...product, quantity: multiplier });
-            }
-            multiplier = 1; // Reset multiplier after adding product
-            inputDisplay.textContent = '0.00'; // Clear input display
-            renderOrder();
-            saveLiveOrderToFirestore();
-        }
-
-        function removeProductFromOrder(productId) {
-            const itemIndex = currentOrder.findIndex(item => item.id === productId);
-            if (itemIndex > -1) {
-                currentOrder.splice(itemIndex, 1);
-            }
-            renderOrder();
-            saveLiveOrderToFirestore();
-        }
-
-        function renderOrder() {
-            orderList.innerHTML = '';
-            let subtotal = 0;
-            let total = 0;
-
-            if (currentOrder.length === 0) {
-                orderList.innerHTML = '<li class="order-item text-gray-500">Keine Artikel in der Bestellung.</li>';
-            } else {
-                currentOrder.forEach(item => {
+        function renderLiveOrder(orderData) {
+            liveOrderList.innerHTML = '';
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach(item => {
                     const listItem = document.createElement('li');
-                    listItem.classList.add('order-item');
-                    listItem.dataset.productId = item.id; // Store product ID for removal
+                    listItem.classList.add('order-display-item');
                     listItem.innerHTML = `
                         <span class="qty">${item.quantity}x</span>
-                        <span class="name">${item.name}</span>
+                        <span class="name">${item.name.toUpperCase()}</span>
                         <span class="price">€${(item.quantity * item.price).toFixed(2)}</span>
                     `;
-                    orderList.appendChild(listItem);
-                    subtotal += item.quantity * item.price;
+                    liveOrderList.appendChild(listItem);
                 });
-            }
-
-            total = subtotal; // Assuming no taxes or discounts for now
-
-            subtotalAmount.textContent = `€${subtotal.toFixed(2)}`;
-            totalAmount.textContent = `€${total.toFixed(2)}`;
-
-            calculateChange(); // Recalculate change whenever order changes
-        }
-
-        function calculateChange() {
-            let change = cashGiven - parseFloat(totalAmount.textContent.replace('€', ''));
-            changeAmount.textContent = `€${change.toFixed(2)}`;
-            changeHeader.textContent = `€${change.toFixed(2)}`;
-            if (change < 0) {
-                changeAmount.classList.add('text-red-500');
-                changeHeader.classList.add('text-red-500');
+                liveOrderTotal.textContent = `TOTAL: €${orderData.total.toFixed(2)}`;
             } else {
-                changeAmount.classList.remove('text-red-500');
-                changeHeader.classList.remove('text-red-500');
+                liveOrderList.innerHTML = '<li class="order-display-item text-gray-500">Keine Artikel in der aktuellen Bestellung.</li>';
+                liveOrderTotal.textContent = `TOTAL: €0.00`;
             }
         }
 
-        function newOrder() {
-            currentOrder = [];
-            currentInput = '0.00';
-            multiplier = 1;
-            cashGiven = 0;
-            renderOrder();
-            inputDisplay.textContent = currentInput;
-            calculateChange();
-            saveLiveOrderToFirestore(); // Clear live display
-            keypadArea.classList.remove('hidden');
-            newOrderArea.classList.add('hidden');
-            renderCategories(); // Go back to category view
-        }
+        // --- Event Listeners ---
+        messageBoxClose.addEventListener('click', hideMessageBox);
 
-        function showMessageBox(title, message) {
+        /**
+         * Displays the message box.
+         * @param {string} title
+         * @param {string} content
+         */
+        function showMessageBox(title, content) {
             messageBoxTitle.textContent = title;
-            messageBoxContent.textContent = message;
+            messageBoxContent.textContent = content;
             messageBoxOverlay.classList.remove('hidden');
         }
 
-        function printReceipt() {
-            const printWindow = window.open('', '', 'height=600,width=400');
-            printWindow.document.write('<html><head><title>Kassenbon</title>');
-            printWindow.document.write('<style>');
-            printWindow.document.write(`
-                body { font-family: 'monospace'; font-size: 12px; line-height: 1.4; color: #000; margin: 0; padding: 0; }
-                .receipt-print-area { width: 80mm; padding: 10mm; box-sizing: border-box; }
-                h2, h3 { text-align: center; margin-bottom: 5px; }
-                h2 { font-size: 18px; margin-bottom: 10px; }
-                h3 { font-size: 14px; margin-bottom: 10px; }
-                .info-line { display: flex; justify-content: space-between; margin-bottom: 2px; }
-                .separator { border-top: 1px dashed #000; margin: 5px 0; }
-                .solid-separator { border-top: 2px solid #000; margin: 5px 0; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th, td { padding: 2px 0; text-align: left; }
-                th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { text-align: right; } /* Adjusting alignment for price columns */
-                .item-row td { border-bottom: 1px dashed #ccc; }
-                .summary-row td { font-weight: bold; }
-                .thank-you { text-align: center; margin-top: 15px; font-size: 14px; font-weight: bold; }
-                .total-final { font-size: 16px; font-weight: bold; margin-top: 10px; }
-            `);
-            printWindow.document.write('</style></head><body>');
-            printWindow.document.write('<div class="receipt-print-area">');
-            printWindow.document.write('<h2>*** KASSENBON ***</h2>');
-            printWindow.document.write('<h3>Schulfest 28.07.2025</h3>');
-            printWindow.document.write(`<div class="info-line"><span>Kasse:</span><span>Kasse 1</span></div>`); // Hardcoded for now
-            printWindow.document.write(`<div class="info-line"><span>Datum:</span><span>${currentDateElem.textContent}</span></div>`);
-            printWindow.document.write(`<div class="info-line"><span>Uhrzeit:</span><span>${currentTimeElem.textContent}</span></div>`);
-            printWindow.document.write('<div class="solid-separator"></div>');
-            
-            printWindow.document.write('<table>');
-            printWindow.document.write('<thead><tr><th>Artikel</th><th class="right-align">Menge</th><th class="right-align">Einzelpreis</th><th class="right-align">Gesamt</th></tr></thead>');
-            printWindow.document.write('<tbody>');
-            currentOrder.forEach(item => {
-                printWindow.document.write(`
-                    <tr class="item-row">
-                        <td>${item.name}</td>
-                        <td class="right-align">${item.quantity}</td>
-                        <td class="right-align">€${item.price.toFixed(2)}</td>
-                        <td class="right-align">€${(item.quantity * item.price).toFixed(2)}</td>
-                    </tr>
-                `);
-            });
-            printWindow.document.write('</tbody></table>');
-            printWindow.document.write('<div class="solid-separator"></div>');
-            
-            printWindow.document.write(`<div class="info-line summary-row"><span>ZWISCHENSUMME</span><span class="right-align">${subtotalAmount.textContent}</span></div>`);
-            printWindow.document.write(`<div class="info-line total-final"><span>TOTAL</span><span class="right-align">${totalAmount.textContent}</span></div>`);
-            printWindow.document.write('<div class="solid-separator"></div>'); // Solid line before cash/change
-
-            printWindow.document.write(`<div class="info-line summary-row"><span>BAR</span><span class="right-align">€${cashGiven.toFixed(2)}</span></div>`);
-            printWindow.document.write(`<div class="info-line total-final"><span>RÜCKGELD</span><span class="right-align">${changeAmount.textContent}</span></div>`);
-            
-            printWindow.document.write('<div class="solid-separator"></div>'); // Solid line after cash/change
-
-            printWindow.document.write('<div class="thank-you">Vielen Dank für Ihren Einkauf!</div>');
-            printWindow.document.write('</div></body></html>');
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-            printWindow.close();
+        /**
+         * Hides the message box.
+         */
+        function hideMessageBox() {
+            messageBoxOverlay.classList.add('hidden');
         }
 
-        // --- New Wertbon Print Function ---
-        function printWertbon(itemName) {
-            const printWindow = window.open('', '', 'height=300,width=400');
-            printWindow.document.write('<html><head><title>Wertbon</title>');
-            printWindow.document.write('<style>');
-            printWindow.document.write(`
-                body { font-family: 'monospace'; font-size: 12px; line-height: 1.4; color: #000; margin: 0; padding: 0; }
-                .wertbon-print-area { width: 80mm; padding: 10mm; box-sizing: border-box; page-break-after: always; }
-                .wertbon-print-area:last-child { page-break-after: auto; }
-                h2, h3 { text-align: center; margin-bottom: 5px; }
-                h2 { font-size: 18px; margin-bottom: 10px; }
-                h3 { font-size: 14px; margin-bottom: 10px; }
-                .info-line { display: flex; justify-content: space-between; margin-bottom: 2px; }
-                .solid-separator { border-top: 2px solid #000; margin: 5px 0; }
-                .item-name {
-                    font-size: 20px;
-                    font-weight: bold;
-                    text-align: center;
-                    margin: 20px 0;
-                    border: 2px solid #000; /* Border around the item name */
-                    padding: 10px;
-                }
-                .thank-you { text-align: center; margin-top: 15px; font-size: 14px; font-weight: bold; }
-            `);
-            printWindow.document.write('</style></head><body>');
-            printWindow.document.write('<div class="wertbon-print-area">');
-            printWindow.document.write('<h2>*** KASSENBON ***</h2>'); // As per user's "logo"
-            printWindow.document.write('<h3>Schulfest 28.07.2025</h3>');
-            printWindow.document.write('<div class="solid-separator"></div>');
-            printWindow.document.write('<div class="info-line"><span>Wertbon gültig am:</span><span>' + currentDateElem.textContent + '</span></div>');
-            printWindow.document.write('<div class="info-line"><span>Ausgestellt um:</span><span>' + currentTimeElem.textContent + '</span></div>');
-            printWindow.document.write('<div class="solid-separator"></div>');
-            printWindow.document.write('<div class="item-name">' + itemName.toUpperCase() + '</div>');
-            printWindow.document.write('<div class="solid-separator"></div>');
-            printWindow.document.write('<div class="thank-you">Vielen Dank und viel Spaß beim Fest!</div>');
-            printWindow.document.write('</div></body></html>');
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-            printWindow.close();
-        }
-
-
-        // --- Event Listeners ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Setup for current date and time display
-            function updateDateTime() {
-                const now = new Date();
-                const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
-                const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-                currentDateElem.textContent = now.toLocaleDateString('de-DE', dateOptions);
-                currentTimeElem.textContent = now.toLocaleTimeString('de-DE', timeOptions);
-            }
-            updateDateTime();
-            setInterval(updateDateTime, 1000); // Update every second
-
-            // Event delegation for number and action buttons
-            document.querySelectorAll('.num-button, .action-button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const input = e.target.dataset.input;
-                    const action = e.target.dataset.action;
-                    const func = e.target.dataset.function;
-
-                    if (input) {
-                        if (input === 'X') {
-                            multiplier = parseFloat(currentInput);
-                            inputDisplay.textContent = '0.00';
-                        } else if (input === '.') {
-                            if (!currentInput.includes('.')) {
-                                currentInput += '.';
-                            }
-                        } else {
-                            if (currentInput === '0.00' || currentInput === '0') {
-                                currentInput = input;
-                            } else {
-                                currentInput += input;
-                            }
-                        }
-                        inputDisplay.textContent = currentInput;
-                    } else if (action === 'function') {
-                        if (func === 'zws') { // Zwischensumme
-                            const total = parseFloat(totalAmount.textContent.replace('€', ''));
-                            if (!isNaN(total)) {
-                                currentInput = total.toFixed(2);
-                                inputDisplay.textContent = currentInput;
-                            }
-                        } else if (func === 'bar') { // BAR / Payment complete
-                            cashGiven = parseFloat(currentInput);
-                            calculateChange();
-                            keypadArea.classList.add('hidden');
-                            newOrderArea.classList.remove('hidden');
-                        }
-                    }
-                });
-            });
-
-            // Clear input button
-            clearInputButton.addEventListener('click', () => {
-                currentInput = '0.00';
-                multiplier = 1;
-                inputDisplay.textContent = currentInput;
-            });
-
-            // New Order Button
-            newOrderButton.addEventListener('click', newOrder);
-
-            // Print Wertbons Button
-            printWertbonsButton.addEventListener('click', () => {
-                if (currentOrder.length === 0) {
-                    showMessageBox('Info', 'Keine Artikel in der Bestellung zum Drucken von Wertbons.');
-                    return;
-                }
-                // Print one Wertbon for each item in the order
-                currentOrder.forEach(item => {
-                    // Print quantity times if quantity > 1
-                    for (let i = 0; i < item.quantity; i++) {
-                        printWertbon(item.name);
-                    }
-                });
-                newOrder(); // Clear order after printing wertbons
-            });
-
-            // Order item click listener (for removal)
-            orderList.addEventListener('click', (e) => {
-                const listItem = e.target.closest('.order-item');
-                if (listItem) {
-                    const productId = listItem.dataset.productId;
-                    removeProductFromOrder(productId);
-                }
-            });
-
-            // Message box close button
-            messageBoxClose.addEventListener('click', () => {
-                messageBoxOverlay.classList.add('hidden');
-            });
-
-            // Admin Login button
-            adminLoginBtn.addEventListener('click', () => {
-                adminLoginOverlay.classList.remove('hidden');
-                adminUsernameInput.focus();
-            });
-
-            // Admin Logout button
-            adminLogoutBtn.addEventListener('click', async () => {
-                if (auth.currentUser) {
-                    await auth.signOut();
-                    isAdminMode = false;
-                    adminLoginBtn.classList.remove('hidden');
-                    adminLogoutBtn.classList.add('hidden');
-                    adminModeStatus.classList.add('hidden');
-                    renderCategories(); // Go back to normal view
-                    showMessageBox('Erfolgreich', 'Admin-Modus deaktiviert.');
-                    console.log("Admin logged out.");
-                }
-            });
-
-            // Login button inside modal
-            loginBtn.addEventListener('click', async () => {
-                const username = adminUsernameInput.value;
-                const password = adminPasswordInput.value;
-
-                // Basic validation (replace with actual authentication logic)
-                if (username === 'admin' && password === 'admin123') {
-                    // Use a custom token or admin SDK for production authentication
-                    // For this example, we'll simulate a privileged login
-                    try {
-                        const idTokenResult = await auth.currentUser.getIdTokenResult(true); // Force refresh
-                        if (idTokenResult.claims && idTokenResult.claims.admin) { // Check for custom claim
-                            isAdminMode = true;
-                            adminLoginOverlay.classList.add('hidden');
-                            adminLoginBtn.classList.add('hidden');
-                            adminLogoutBtn.classList.remove('hidden');
-                            adminModeStatus.classList.remove('hidden');
-                            renderAdminMainMenu(); // Show admin menu
-                            showMessageBox('Erfolgreich', 'Admin-Modus aktiviert.');
-                        } else {
-                            // If no custom claim, assume user is not admin
-                            showMessageBox('Fehler', 'Keine Admin-Berechtigung.');
-                            adminLoginOverlay.classList.add('hidden');
-                        }
-                    } catch (error) {
-                        console.error("Error checking custom claims:", error);
-                        showMessageBox('Fehler', 'Authentifizierungsfehler.');
-                        adminLoginOverlay.classList.add('hidden');
-                    }
-                } else {
-                    showMessageBox('Fehler', 'Ungültiger Benutzername oder Passwort.');
-                    adminLoginOverlay.classList.add('hidden');
-                }
-            });
-
-            // Cancel login button inside modal
-            cancelLoginBtn.addEventListener('click', () => {
-                adminLoginOverlay.classList.add('hidden');
-            });
-
-            // Live Display Link button
-            liveDisplayLinkBtn.addEventListener('click', () => {
-                let displayUrl;
-                // Check if running on a file system or web server
-                if (window.location.protocol === 'file:') {
-                    // For local file system, assume display.html is in the same directory
-                    const currentPath = window.location.href;
-                    const lastSlashIndex = currentPath.lastIndexOf('/');
-                    const basePath = currentPath.substring(0, lastSlashIndex + 1);
-                    displayUrl = `${basePath}display.html?appId=${appId}`;
-                } else {
-                    // For web servers (like GitHub Pages)
-                    const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
-                    displayUrl = `${baseUrl}display.html?appId=${appId}`;
-                }
-                liveDisplayUrlInput.value = displayUrl;
-                liveDisplayOverlay.classList.remove('hidden');
-                console.log("Live Display Link generated:", displayUrl);
-            });
-
-            copyLiveDisplayUrlBtn.addEventListener('click', () => {
-                liveDisplayUrlInput.select();
-                document.execCommand('copy');
-                showMessageBox('Kopiert!', 'Der Link wurde in die Zwischenablage kopiert.');
-                liveDisplayOverlay.classList.add('hidden'); // Close after copying
-            });
-
-            closeLiveDisplayBtn.addEventListener('click', () => {
-                liveDisplayOverlay.classList.add('hidden');
-            });
-
-            // Initial rendering of categories when the page loads
-            initializeFirebase();
-            renderOrder(); // Render initial empty order
-            inputDisplay.textContent = currentInput; // Set initial display to 0.00
-        });
-
-        // --- Admin Mode Functions (renderAdminMainMenu, renderAdminCategoryManagement, etc.) ---
-        function renderAdminMainMenu() {
-            console.log("Rendering Admin Main Menu. Current admin view:", currentAdminView);
-            rightPanel.innerHTML = `
-                <div class="admin-main-menu col-span-4">
-                    <button class="menu-button" data-admin-action="manage-categories">Kategorien verwalten</button>
-                    <button class="menu-button" data-admin-action="manage-products">Produkte verwalten</button>
-                    <button class="menu-button" data-admin-action="manage-sellers">Verkäufer verwalten</button>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700" data-admin-action="exit-admin">Admin-Modus verlassen</button>
-                </div>
-            `;
-            currentAdminView = 'main';
-
-            document.querySelectorAll('.admin-main-menu .menu-button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const action = e.target.dataset.adminAction;
-                    if (action === 'manage-categories') {
-                        renderAdminCategoryManagement();
-                    } else if (action === 'manage-products') {
-                        renderAdminProductManagement();
-                    } else if (action === 'manage-sellers') {
-                        renderAdminSellerManagement();
-                    } else if (action === 'exit-admin') {
-                        adminLogoutBtn.click(); // Simulate logout button click
-                    }
-                });
-            });
-        }
-
-        function renderAdminCategoryManagement() {
-            currentAdminView = 'categories';
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4 grid">
-                    <div class="admin-config-section">
-                        <h4>Neue Kategorie hinzufügen</h4>
-                        <input type="text" id="newCategoryName" placeholder="Kategoriename">
-                        <select id="newCategoryColor">
-                            <option value="yellow">Gelb</option>
-                            <option value="orange">Orange</option>
-                            <option value="purple">Lila</option>
-                            <option value="green">Grün</option>
-                            <option value="blue">Blau</option>
-                            <option value="red">Rot</option>
-                            <option value="light-blue">Hellblau</option>
-                            <option value="pink">Pink</option>
-                            <option value="gray">Grau</option>
-                        </select>
-                        <input type="text" id="newCategoryStandName" placeholder="Standname (optional)">
-                        <button id="addCategoryBtn">Hinzufügen</button>
-                    </div>
-                    <div class="admin-config-section">
-                        <h4>Bestehende Kategorien</h4>
-                        <div class="admin-config-list" id="categoryListAdmin">
-                            </div>
-                    </div>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-action="back-to-admin-menu">Zurück zum Admin-Menü</button>
-                </div>
-            `;
-
-            const newCategoryNameInput = document.getElementById('newCategoryName');
-            const newCategoryColorSelect = document.getElementById('newCategoryColor');
-            const newCategoryStandNameInput = document.getElementById('newCategoryStandName');
-            const addCategoryBtn = document.getElementById('addCategoryBtn');
-            const categoryListAdmin = document.getElementById('categoryListAdmin');
-            const backToAdminMenuBtn = document.querySelector('[data-admin-action="back-to-admin-menu"]');
-
-            addCategoryBtn.addEventListener('click', async () => {
-                const name = newCategoryNameInput.value.trim();
-                const color = newCategoryColorSelect.value;
-                const standName = newCategoryStandNameInput.value.trim();
-                if (name) {
-                    await saveCategoryToFirestore({ id: doc(collection(db, 'temp')).id, name, color, standName });
-                    newCategoryNameInput.value = '';
-                    newCategoryStandNameInput.value = '';
-                } else {
-                    showMessageBox('Fehler', 'Kategoriename darf nicht leer sein.');
-                }
-            });
-
-            // Render existing categories
-            categoryListAdmin.innerHTML = '';
-            posData.categories.forEach(category => {
-                const categoryItem = document.createElement('div');
-                categoryItem.classList.add('admin-config-item');
-                categoryItem.innerHTML = `
-                    <span>${category.name} (${category.color}) - Stand: ${category.standName || '-'}</span>
-                    <div>
-                        <button class="delete" data-category-id="${category.id}">Löschen</button>
-                    </div>
-                `;
-                categoryListAdmin.appendChild(categoryItem);
-            });
-
-            // Add delete listeners
-            categoryListAdmin.querySelectorAll('.delete').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const categoryId = e.target.dataset.categoryId;
-                    if (confirm('Sind Sie sicher, dass Sie diese Kategorie und alle zugehörigen Produkte löschen möchten?')) {
-                        deleteCategoryFromFirestore(categoryId);
-                    }
-                });
-            });
-
-            backToAdminMenuBtn.addEventListener('click', renderAdminMainMenu);
-        }
-
-        function renderAdminProductManagement() {
-            currentAdminView = 'products';
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4 grid">
-                    <div class="admin-config-section">
-                        <h4>Neues Produkt hinzufügen</h4>
-                        <select id="newProductCategorySelect">
-                            <option value="">-- Kategorie wählen --</option>
-                            ${posData.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('')}
-                        </select>
-                        <input type="text" id="newProductName" placeholder="Produktname">
-                        <input type="number" id="newProductPrice" step="0.01" placeholder="Preis (z.B. 2.50)">
-                        <button id="addProductBtn">Hinzufügen</button>
-                    </div>
-                    <div class="admin-config-section">
-                        <h4>Bestehende Produkte</h4>
-                        <select id="filterProductCategorySelect">
-                            <option value="">Alle Kategorien</option>
-                            ${posData.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('')}
-                        </select>
-                        <div class="admin-config-list" id="productListAdmin">
-                            </div>
-                    </div>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-action="back-to-admin-menu">Zurück zum Admin-Menü</button>
-                </div>
-            `;
-
-            const newProductCategorySelect = document.getElementById('newProductCategorySelect');
-            const newProductNameInput = document.getElementById('newProductName');
-            const newProductPriceInput = document.getElementById('newProductPrice');
-            const addProductBtn = document.getElementById('addProductBtn');
-            const filterProductCategorySelect = document.getElementById('filterProductCategorySelect');
-            const productListAdmin = document.getElementById('productListAdmin');
-            const backToAdminMenuBtn = document.querySelector('[data-admin-action="back-to-admin-menu"]');
-
-            const renderProductListAdmin = (filterCategoryId = null) => {
-                productListAdmin.innerHTML = '';
-                posData.categories.forEach(category => {
-                    if (filterCategoryId && category.id !== filterCategoryId) {
-                        return;
-                    }
-                    if (posData.products[category.id] && posData.products[category.id].length > 0) {
-                        const categoryHeader = document.createElement('h5');
-                        categoryHeader.classList.add('font-bold', 'mt-2', 'mb-1', 'text-yellow-300');
-                        categoryHeader.textContent = category.name;
-                        productListAdmin.appendChild(categoryHeader);
-
-                        posData.products[category.id].forEach(product => {
-                            const productItem = document.createElement('div');
-                            productItem.classList.add('admin-config-item');
-                            productItem.innerHTML = `
-                                <span>${product.name} (€${product.price.toFixed(2)})</span>
-                                <div>
-                                    <button class="delete" data-product-id="${product.id}">Löschen</button>
-                                </div>
-                            `;
-                            productListAdmin.appendChild(productItem);
-                        });
-                    }
-                });
-                productListAdmin.querySelectorAll('.delete').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const productId = e.target.dataset.productId;
-                        if (confirm('Sind Sie sicher, dass Sie dieses Produkt löschen möchten?')) {
-                            deleteProductFromFirestore(productId);
-                        }
-                    });
-                });
-            };
-
-            addProductBtn.addEventListener('click', async () => {
-                const categoryId = newProductCategorySelect.value;
-                const name = newProductNameInput.value.trim();
-                const price = parseFloat(newProductPriceInput.value);
-
-                if (categoryId && name && !isNaN(price) && price >= 0) {
-                    await saveProductToFirestore({ categoryId, name, price });
-                    newProductNameInput.value = '';
-                    newProductPriceInput.value = '';
-                    newProductCategorySelect.value = ''; // Reset dropdown
-                } else {
-                    showMessageBox('Fehler', 'Bitte wählen Sie eine Kategorie, geben Sie einen gültigen Namen und Preis ein.');
-                }
-            });
-
-            filterProductCategorySelect.addEventListener('change', (e) => {
-                renderProductListAdmin(e.target.value || null);
-            });
-
-            renderProductListAdmin(); // Initial render
-            backToAdminMenuBtn.addEventListener('click', renderAdminMainMenu);
-        }
-
-        function renderAdminSellerManagement() {
-            currentAdminView = 'sellers';
-            rightPanel.innerHTML = `
-                <div class="admin-config-panel col-span-4 grid">
-                    <div class="admin-config-section">
-                        <h4>Neuen Verkäufer hinzufügen</h4>
-                        <input type="text" id="newSellerName" placeholder="Verkäufername">
-                        <button id="addSellerBtn">Hinzufügen</button>
-                    </div>
-                    <div class="admin-config-section">
-                        <h4>Bestehende Verkäufer</h4>
-                        <div class="admin-config-list" id="sellerListAdmin">
-                            </div>
-                    </div>
-                    <button class="menu-button bg-gray-600 hover:bg-gray-700 col-span-4 mt-4" data-admin-action="back-to-admin-menu">Zurück zum Admin-Menü</button>
-                </div>
-            `;
-
-            const newSellerNameInput = document.getElementById('newSellerName');
-            const addSellerBtn = document.getElementById('addSellerBtn');
-            const sellerListAdmin = document.getElementById('sellerListAdmin');
-            const backToAdminMenuBtn = document.querySelector('[data-admin-action="back-to-admin-menu"]');
-
-            addSellerBtn.addEventListener('click', async () => {
-                const name = newSellerNameInput.value.trim();
-                if (name) {
-                    await saveSellerToFirestore({ id: doc(collection(db, 'temp')).id, name });
-                    newSellerNameInput.value = '';
-                } else {
-                    showMessageBox('Fehler', 'Verkäufername darf nicht leer sein.');
-                }
-            });
-
-            // Render existing sellers
-            sellerListAdmin.innerHTML = '';
-            posData.sellers.forEach(seller => {
-                const sellerItem = document.createElement('div');
-                sellerItem.classList.add('admin-config-item');
-                sellerItem.innerHTML = `
-                    <span>${seller.name}</span>
-                    <div>
-                        <button class="delete" data-seller-id="${seller.id}">Löschen</button>
-                    </div>
-                `;
-                sellerListAdmin.appendChild(sellerItem);
-            });
-
-            // Add delete listeners
-            sellerListAdmin.querySelectorAll('.delete').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const sellerId = e.target.dataset.sellerId;
-                    if (confirm('Sind Sie sicher, dass Sie diesen Verkäufer löschen möchten?')) {
-                        deleteSellerFromFirestore(sellerId);
-                    }
-                });
-            });
-
-            backToAdminMenuBtn.addEventListener('click', renderAdminMainMenu);
-        }
-
-        function renderCategories() {
-            currentAdminView = null; // Exit admin view
-            rightPanel.innerHTML = ''; // Clear existing content
-            if (posData.categories.length === 0) {
-                rightPanel.innerHTML = '<div class="col-span-4 text-center text-gray-400 text-lg">Keine Kategorien verfügbar. Bitte fügen Sie Kategorien im Admin-Modus hinzu.</div>';
-                return;
-            }
-            posData.categories.forEach(category => {
-                const button = document.createElement('button');
-                button.classList.add('product-button', category.color);
-                button.textContent = category.name;
-                button.dataset.categoryId = category.id;
-                button.addEventListener('click', () => {
-                    currentCategory = category.id;
-                    renderProducts(category.id);
-                });
-                rightPanel.appendChild(button);
-            });
-        }
-
-        function renderProducts(categoryId) {
-            rightPanel.innerHTML = ''; // Clear existing content
-            const products = posData.products[categoryId] || [];
-            if (products.length === 0) {
-                rightPanel.innerHTML = '<div class="col-span-4 text-center text-gray-400 text-lg">Keine Produkte in dieser Kategorie.</div>';
-            }
-            products.forEach(product => {
-                const button = document.createElement('button');
-                const category = posData.categories.find(cat => cat.id === categoryId);
-                button.classList.add('product-button', category ? category.color : 'gray');
-                button.innerHTML = `${product.name}<br>€${product.price.toFixed(2)}`;
-                button.addEventListener('click', () => {
-                    addProductToOrder(product);
-                });
-                rightPanel.appendChild(button);
-            });
-
-            // Add a "Back to Categories" button
-            const backButton = document.createElement('button');
-            backButton.classList.add('product-button', 'bg-gray-700', 'hover:bg-gray-800', 'col-span-4');
-            backButton.textContent = 'Zurück zu Kategorien';
-            backButton.addEventListener('click', () => {
-                currentCategory = null;
-                renderCategories();
-            });
-            rightPanel.appendChild(backButton);
-        }
-
+        initializeFirebaseAndListeners();
     </script>
 </body>
 </html>
