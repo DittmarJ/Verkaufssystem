@@ -295,7 +295,7 @@
         }
 
         /* Message Box Styling */
-        .message-box-overlay, .admin-login-overlay, .kasse-select-overlay, .live-display-overlay {
+        .message-box-overlay, .admin-login-overlay, .live-display-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -307,7 +307,7 @@
             align-items: center;
             z-index: 1000;
         }
-        .message-box, .admin-login-box, .kasse-select-box, .live-display-box {
+        .message-box, .admin-login-box, .live-display-box {
             background-color: #333;
             color: white;
             padding: 2rem;
@@ -318,16 +318,16 @@
             width: 90%;
             border: 2px solid #555;
         }
-        .message-box h3, .admin-login-box h3, .kasse-select-box h3, .live-display-box h3 {
+        .message-box h3, .admin-login-box h3, .live-display-box h3 {
             font-size: 1.8rem;
             margin-bottom: 1rem;
             color: #ffcc00;
         }
-        .message-box p, .admin-login-box p, .kasse-select-box p, .live-display-box p {
+        .message-box p, .admin-login-box p, .live-display-box p {
             font-size: 1.1rem;
             margin-bottom: 2rem;
         }
-        .message-box button, .admin-login-box button, .kasse-select-box button, .live-display-box button {
+        .message-box button, .admin-login-box button, .live-display-box button {
             background-color: #007bff;
             color: white;
             padding: 0.75rem 1.5rem;
@@ -335,7 +335,7 @@
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
-        .message-box button:hover, .admin-login-box button:hover, .kasse-select-box button:hover, .live-display-box button:hover {
+        .message-box button:hover, .admin-login-box button:hover, .live-display-box button:hover {
             background-color: #0056b3;
         }
         .admin-login-box input {
@@ -350,19 +350,6 @@
         }
         .admin-login-box button {
             margin: 0 10px;
-        }
-        .kasse-select-box .kasse-buttons button {
-            display: block;
-            width: 80%;
-            margin: 1rem auto;
-            font-size: 1.5rem;
-            padding: 1rem;
-            background-color: #28a745;
-            color: white;
-            border-radius: 0.75rem;
-        }
-        .kasse-select-box .kasse-buttons button:hover {
-            background-color: #218838;
         }
         .live-display-box input {
             width: calc(100% - 20px);
@@ -537,7 +524,7 @@
         <!-- Header Bar -->
         <div class="header-bar">
             <div class="flex items-center gap-2">
-                <span class="user-badge" id="cashierBadge">Kasse: Nicht ausgewählt</span>
+                <span class="user-badge">Frau Becker</span>
                 <!-- New span to display userId for debugging -->
                 <span id="displayUserId" class="text-sm text-gray-400 ml-2">[UserID: Laden...] (Kat./Prod. Geteilt)</span>
                 <button id="liveDisplayLinkBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-full text-sm ml-4">Live Display Link</button>
@@ -652,19 +639,6 @@
         </div>
     </div>
 
-    <!-- Kasse Select Modal (New) -->
-    <div id="kasseSelectOverlay" class="kasse-select-overlay">
-        <div class="kasse-select-box">
-            <h3>Kasse auswählen</h3>
-            <p>Bitte wählen Sie Ihre Kasse aus:</p>
-            <div class="kasse-buttons">
-                <button data-kasse-id="Kasse1">Kasse 1</button>
-                <button data-kasse-id="Kasse2">Kasse 2</button>
-                <button data-kasse-id="Kasse3">Kasse 3</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Live Display Link Modal -->
     <div id="liveDisplayOverlay" class="live-display-overlay hidden">
         <div class="live-display-box">
@@ -679,15 +653,14 @@
     <script type="module">
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase app and services
         let app;
         let db;
         let auth;
         let userId = 'anonymous'; // Default to anonymous until authenticated
-        let selectedKasseId = null; // Stores the selected Kasse ID
 
         // Firebase Configuration - REPLACE with your actual Firebase project config
         const firebaseConfig = {
@@ -712,8 +685,7 @@
         const changeHeader = document.getElementById('changeHeader');
         const currentDateElem = document.getElementById('currentDate');
         const currentTimeElem = document.getElementById('currentTime');
-        const displayUserId = document.getElementById('displayUserId'); 
-        const cashierBadge = document.getElementById('cashierBadge'); // New: Kasse display
+        const displayUserId = document.getElementById('displayUserId'); // New: Element to display userId
 
         const messageBoxOverlay = document.getElementById('messageBoxOverlay');
         const messageBoxTitle = document.getElementById('messageBoxTitle');
@@ -728,9 +700,6 @@
         const adminPasswordInput = document.getElementById('adminPassword');
         const loginBtn = document.getElementById('loginBtn');
         const cancelLoginBtn = document.getElementById('cancelLoginBtn'); 
-
-        const kasseSelectOverlay = document.getElementById('kasseSelectOverlay'); // New: Kasse select modal
-        const kasseButtons = kasseSelectOverlay.querySelector('.kasse-buttons'); // Container for Kasse buttons
 
         const rightPanel = document.getElementById('rightPanel');
         const inputDisplay = document.getElementById('inputDisplay'); // Input display element
@@ -751,8 +720,8 @@
 
         // State variables
         let currentOrder = [];
-        let multiplier = 1;
         let currentInput = '0.00'; // Initialize with "0.00"
+        let multiplier = 1;
         let cashGiven = 0;
         let isAdminMode = false;
         let currentCategory = null; // Stores the currently selected category for product display
@@ -783,16 +752,10 @@
                             userId = user.uid;
                             displayUserId.textContent = `[UserID: ${userId}] (Kat./Prod. Geteilt)`;
                             console.log("User authenticated. Current userId:", userId);
-                            // Only show Kasse selection if not already selected
-                            if (!selectedKasseId) {
-                                kasseSelectOverlay.classList.remove('hidden');
-                            } else {
-                                // If Kasse was already selected (e.g., page refresh), set up listeners directly
-                                if (!firestoreListenersSetup) {
-                                    console.log("Authentication successful, Kasse already selected, calling setupFirestoreListeners.");
-                                    setupFirestoreListeners();
-                                    firestoreListenersSetup = true;
-                                }
+                            if (!firestoreListenersSetup) {
+                                console.log("Authentication successful, calling setupFirestoreListeners.");
+                                setupFirestoreListeners();
+                                firestoreListenersSetup = true;
                             }
                         } else {
                             if (!firestoreListenersSetup) {
@@ -804,11 +767,10 @@
                                     userId = 'anonymous_fallback';
                                     displayUserId.textContent = `[UserID: ${userId} (Fehler)] (Kat./Prod. Geteilt)`;
                                     console.warn("Authentication failed, proceeding without persistent data storage for categories/products/sellers.");
-                                    renderCategories(); // Render with local data if no Firebase
+                                    renderCategories();
                                     renderOrder();
                                     inputDisplay.textContent = currentInput;
-                                    firestoreListenersSetup = true; // Mark as setup to avoid repeated attempts
-                                    kasseSelectOverlay.classList.add('hidden'); // Hide Kasse selection if no auth
+                                    firestoreListenersSetup = true;
                                 }
                             }
                         }
@@ -819,7 +781,6 @@
                     renderCategories();
                     renderOrder();
                     inputDisplay.textContent = currentInput;
-                    kasseSelectOverlay.classList.add('hidden'); // Hide Kasse selection if no Firebase
                 }
             } catch (error) {
                 console.error("Fatal error during Firebase app initialization:", error);
@@ -828,35 +789,18 @@
                 renderCategories();
                 renderOrder();
                 inputDisplay.textContent = currentInput;
-                kasseSelectOverlay.classList.add('hidden'); // Hide Kasse selection on fatal error
             }
         }
 
-        // --- Kasse Selection Logic ---
-        kasseButtons.addEventListener('click', async (event) => {
-            const button = event.target.closest('button[data-kasse-id]');
-            if (button) {
-                selectedKasseId = button.dataset.kasseId;
-                cashierBadge.textContent = selectedKasseId.replace('Kasse', 'Kasse '); // Update badge
-                kasseSelectOverlay.classList.add('hidden');
-                console.log(`Kasse selected: ${selectedKasseId}`);
-                if (!firestoreListenersSetup) {
-                    setupFirestoreListeners();
-                    firestoreListenersSetup = true;
-                }
-                await loadCurrentCartFromFirestore(); // Load cart for selected Kasse
-            }
-        });
-
         // --- Firestore Data Listeners ---
         function setupFirestoreListeners() {
-            if (!db || !auth.currentUser || auth.currentUser.uid === 'anonymous_fallback' || !selectedKasseId) {
-                console.warn("Firestore, current user, Kasse ID, or valid user ID not available at listener setup. Aborting listener setup.");
+            if (!db || !auth.currentUser || auth.currentUser.uid === 'anonymous_fallback') {
+                console.warn("Firestore, current user, or valid user ID not available at listener setup. Aborting listener setup.");
                 loadingMessage.classList.add('hidden');
                 return;
             }
             const currentAuthedUserId = auth.currentUser.uid;
-            console.log("Proceeding with Firestore listeners. Auth User ID:", currentAuthedUserId, "Kasse ID:", selectedKasseId);
+            console.log("Proceeding with Firestore listeners. Auth User ID:", currentAuthedUserId);
 
             loadingMessage.classList.remove('hidden');
             rightPanel.innerHTML = '';
@@ -943,40 +887,21 @@
                 showMessageBox('Fehler', 'Verkäufer konnten nicht geladen werden.');
                 loadingMessage.classList.add('hidden');
             });
-
-             // Listener for current cart (Public/Kasse-specific)
-            const currentCartRef = doc(db, `artifacts/${appId}/public/data/currentCarts`, selectedKasseId);
-            onSnapshot(currentCartRef, (docSnapshot) => {
-                if (docSnapshot.exists()) {
-                    const cartData = docSnapshot.data();
-                    if (JSON.stringify(currentOrder) !== JSON.stringify(cartData.items)) { // Prevent endless loops if data is identical
-                        currentOrder = cartData.items || [];
-                        console.log(`Current cart for ${selectedKasseId} loaded from Firestore:`, currentOrder);
-                        renderOrder();
-                    }
-                } else {
-                    console.log(`No existing cart for ${selectedKasseId}. Starting with empty cart.`);
-                    currentOrder = [];
-                    renderOrder();
-                }
-            }, (error) => {
-                console.error(`Error loading current cart for ${selectedKasseId}:`, error);
-                showMessageBox('Fehler', `Warenkorb für ${selectedKasseId} konnte nicht geladen werden.`);
-            });
         }
 
         // --- Firebase Data Operations (CRUD) ---
 
         /**
          * Saves the current order for live display on a second screen.
-         * This data is public and Kasse-specific.
+         * This data is public.
          */
         async function saveLiveOrderToFirestore() {
-            if (!db || !auth.currentUser || !selectedKasseId) {
-                console.warn("Firestore, user, or Kasse not authenticated/selected. Live order cannot be saved.");
+            if (!db || !auth.currentUser) {
+                console.warn("Firestore or user not authenticated. Live order cannot be saved.");
                 return;
             }
             try {
+                // Combine relevant order data for display
                 const orderToSave = {
                     items: currentOrder.map(item => ({
                         name: item.name,
@@ -985,67 +910,14 @@
                     })),
                     subtotal: parseFloat(subtotalAmount.textContent.replace('€', '')),
                     total: parseFloat(totalAmount.textContent.replace('€', '')),
-                    timestamp: Date.now()
+                    timestamp: Date.now() // Add a timestamp for freshness
                 };
-                // Save to a fixed public document per Kasse
-                const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, selectedKasseId);
+                // Save to a fixed public document
+                const liveOrderDocRef = doc(db, `artifacts/${appId}/public/data/liveOrders`, 'liveOrderDisplay');
                 await setDoc(liveOrderDocRef, orderToSave);
-                console.log(`Live order for ${selectedKasseId} saved to Firestore:`, orderToSave);
+                console.log("Live order saved to Firestore:", orderToSave);
             } catch (e) {
                 console.error("Error saving live order:", e);
-            }
-        }
-
-        /**
-         * Saves the current cart to Firestore.
-         * This data is public and Kasse-specific.
-         */
-        async function saveCurrentCartToFirestore() {
-            if (!db || !auth.currentUser || !selectedKasseId) {
-                console.warn("Firestore, user, or Kasse not authenticated/selected. Current cart cannot be saved.");
-                return;
-            }
-            try {
-                const cartToSave = {
-                    items: currentOrder.map(item => ({
-                        name: item.name,
-                        price: item.price,
-                        quantity: item.quantity
-                    })),
-                    lastUpdated: Date.now()
-                };
-                const currentCartDocRef = doc(db, `artifacts/${appId}/public/data/currentCarts`, selectedKasseId);
-                await setDoc(currentCartDocRef, cartToSave);
-                console.log(`Current cart for ${selectedKasseId} saved to Firestore.`);
-            } catch (e) {
-                console.error("Error saving current cart:", e);
-            }
-        }
-
-        /**
-         * Loads the current cart from Firestore for the selected Kasse.
-         * Called after Kasse selection.
-         */
-        async function loadCurrentCartFromFirestore() {
-            if (!db || !auth.currentUser || !selectedKasseId) {
-                console.warn("Firestore, user, or Kasse not authenticated/selected. Cannot load current cart.");
-                return;
-            }
-            try {
-                const currentCartDocRef = doc(db, `artifacts/${appId}/public/data/currentCarts`, selectedKasseId);
-                const docSnap = await getDoc(currentCartDocRef);
-                if (docSnap.exists()) {
-                    const cartData = docSnap.data();
-                    currentOrder = cartData.items || [];
-                    console.log(`Current cart for ${selectedKasseId} loaded from Firestore on init:`, currentOrder);
-                } else {
-                    currentOrder = [];
-                    console.log(`No existing cart for ${selectedKasseId}. Starting with empty cart.`);
-                }
-                renderOrder();
-            } catch (e) {
-                console.error("Error loading current cart:", e);
-                showMessageBox('Fehler', `Warenkorb für ${selectedKasseId} konnte nicht geladen werden.`);
             }
         }
 
@@ -1232,7 +1104,6 @@
             inputDisplay.textContent = currentInput;
             renderOrder();
             saveLiveOrderToFirestore(); // Save live order after update
-            saveCurrentCartToFirestore(); // Save current cart to Firestore
         }
 
         /**
@@ -1273,7 +1144,6 @@
                 currentOrder.splice(index, 1);
                 renderOrder();
                 saveLiveOrderToFirestore(); // Save live order after update
-                saveCurrentCartToFirestore(); // Save current cart to Firestore
             } else {
                 console.error('Ungültiger Artikelindex zum Entfernen.');
             }
@@ -1367,13 +1237,6 @@
                         printWertbon(currentOrder); // Pass only currentOrder to print individual receipts
                         keypadArea.classList.add('hidden');
                         newOrderArea.classList.remove('hidden');
-                        // Clear the current cart in Firestore after successful transaction
-                        if (db && auth.currentUser && selectedKasseId) {
-                            const currentCartDocRef = doc(db, `artifacts/${appId}/public/data/currentCarts`, selectedKasseId);
-                            setDoc(currentCartDocRef, { items: [], lastUpdated: Date.now() }) // Set to empty array
-                                .then(() => console.log(`Cart for ${selectedKasseId} cleared in Firestore.`))
-                                .catch(e => console.error(`Error clearing cart for ${selectedKasseId}:`, e));
-                        }
                     } else {
                         showMessageBox('Fehler', 'Nicht genug Bargeld.');
                     }
@@ -1544,7 +1407,6 @@
             newOrderArea.classList.add('hidden');
             keypadArea.classList.remove('hidden');
             saveLiveOrderToFirestore(); // Reset live order on new order
-            saveCurrentCartToFirestore(); // Clear current cart in Firestore
         });
 
 
@@ -2054,21 +1916,17 @@
 
         // Live Display Link Logic
         liveDisplayLinkBtn.addEventListener('click', () => {
-            if (!selectedKasseId) {
-                showMessageBox('Fehler', 'Bitte wählen Sie zuerst eine Kasse aus, um den Live Display Link zu generieren.');
-                return;
-            }
             let displayUrl;
             if (window.location.protocol === 'file:') {
                 // For local file system testing, assume display.html is in the same directory
                 const currentPath = window.location.href;
                 const lastSlashIndex = currentPath.lastIndexOf('/');
                 const basePath = currentPath.substring(0, lastSlashIndex + 1);
-                displayUrl = `${basePath}display.html?appId=${appId}&kasseId=${selectedKasseId}`;
+                displayUrl = `${basePath}display.html?appId=${appId}`;
             } else {
                 // For web servers (like GitHub Pages)
                 const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
-                displayUrl = `${baseUrl}display.html?appId=${appId}&kasseId=${selectedKasseId}`;
+                displayUrl = `${baseUrl}display.html?appId=${appId}`;
             }
             liveDisplayUrlInput.value = displayUrl;
             liveDisplayOverlay.classList.remove('hidden');
