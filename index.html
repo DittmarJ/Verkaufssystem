@@ -578,7 +578,7 @@
 
         <div class="bottom-panel-container">
             <div class="input-display-area">
-                <div id="inputDisplay" class="input-display-line"></div>
+                <div id="inputDisplay" class="input-display-line">0.00</div>
                 <button id="clearInputButton" class="clear-input-button">C</button>
             </div>
             
@@ -708,7 +708,7 @@
 
         // State variables
         let currentOrder = [];
-        let currentInput = '0.00'; // Initialize with "0.00"
+        let currentInput = ''; // Initialize as empty string to allow natural number input
         let multiplier = 1;
         let cashGiven = 0;
         let isAdminMode = false;
@@ -755,9 +755,9 @@
                                     userId = 'anonymous_fallback';
                                     displayUserId.textContent = `[UserID: ${userId} (Fehler)] (Kat./Prod. Geteilt)`;
                                     console.warn("Authentication failed, proceeding without persistent data storage for categories/products/sellers.");
-                                    renderCategories();
+                                    renderCategories(); // Still try to render in case of cached data or for UI consistency
                                     renderOrder();
-                                    inputDisplay.textContent = currentInput;
+                                    inputDisplay.textContent = formatInputDisplay(currentInput);
                                     firestoreListenersSetup = true;
                                 }
                             }
@@ -768,7 +768,7 @@
                     displayUserId.textContent = `[UserID: Nicht konfiguriert] (Kat./Prod. Geteilt)`;
                     renderCategories();
                     renderOrder();
-                    inputDisplay.textContent = currentInput;
+                    inputDisplay.textContent = formatInputDisplay(currentInput);
                 }
             } catch (error) {
                 console.error("Fatal error during Firebase app initialization:", error);
@@ -776,7 +776,7 @@
                 displayUserId.textContent = `[UserID: Fehler] (Kat./Prod. Geteilt)`;
                 renderCategories();
                 renderOrder();
-                inputDisplay.textContent = currentInput;
+                inputDisplay.textContent = formatInputDisplay(currentInput);
             }
         }
 
@@ -790,7 +790,7 @@
             const currentAuthedUserId = auth.currentUser.uid;
             console.log("Proceeding with Firestore listeners. Auth User ID:", currentAuthedUserId);
             loadingMessage.classList.remove('hidden');
-            rightPanel.innerHTML = '';
+            rightPanel.innerHTML = ''; // Clear right panel content temporarily
 
             // Listener for Categories (Public/Shared)
             const categoriesRef = collection(db, `artifacts/${appId}/public/data/categories`);
@@ -838,7 +838,7 @@
                     if (currentCategory) {
                         renderProducts(currentCategory);
                     } else {
-                        renderCategories();
+                        renderCategories(); // Re-render categories to ensure product counts are updated if displayed
                     }
                 } else {
                     if (currentAdminView === 'products') {
@@ -1044,6 +1044,8 @@
                 currentOrder.push({ name: productName, price: productPrice, quantity: multiplier });
             }
             multiplier = 1; // Reset multiplier after use
+            currentInput = ''; // Clear input after adding product
+            inputDisplay.textContent = formatInputDisplay(currentInput);
             renderOrder();
             saveLiveOrderToFirestore(); // Update live display
         }
@@ -1116,11 +1118,11 @@
             
             // Clear order and reset state after successful payment
             currentOrder = [];
-            currentInput = '0.00';
+            currentInput = ''; // Reset input to empty
             multiplier = 1;
             cashGiven = 0;
             renderOrder();
-            inputDisplay.textContent = currentInput;
+            inputDisplay.textContent = formatInputDisplay(currentInput);
             saveLiveOrderToFirestore(); // Clear live display
             showNewOrderButton();
             showMessageBox('Erfolg', 'Bestellung abgeschlossen und Bon gedruckt.');
@@ -1205,6 +1207,22 @@
         // --- Render Functions (UI Updates) ---
 
         /**
+         * Formats the current input string for display.
+         * Ensures two decimal places when a decimal point is present or when clearing.
+         */
+        function formatInputDisplay(input) {
+            if (input === '') {
+                return '0.00';
+            }
+            if (input.includes('.')) {
+                return input; // Display as is while typing decimals
+            }
+            // If no decimal, just display the number as is (e.g., "1", "123")
+            // Convert to number and then to string to handle leading zeros correctly for integers (e.g., "01" -> "1")
+            return parseFloat(input).toString();
+        }
+
+        /**
          * Renders product categories as buttons.
          */
         function renderCategories() {
@@ -1249,8 +1267,7 @@
             });
             rightPanel.appendChild(backButton);
 
-            const productsIn
-            Category = posData.products[category.id] || [];
+            const productsInCategory = posData.products[category.id] || [];
             if (productsInCategory.length === 0) {
                 const noProductsMessage = document.createElement('p');
                 noProductsMessage.classList.add('col-span-4', 'text-center', 'text-gray-400', 'text-lg');
@@ -1505,6 +1522,7 @@
             document.getElementById('backToAdminMenuBtn').addEventListener('click', renderAdminMainMenu);
 
             // Populate category dropdown
+            productCategorySelect.innerHTML = '<option value="">Kategorie auswählen</option>'; // Clear existing and add default
             posData.categories.forEach(category => {
                 const option = document.createElement('option');
                 option.value = category.id;
@@ -1515,26 +1533,44 @@
             function populateProductList() {
                 productList.innerHTML = '';
                 // Iterate through products grouped by category
-                for (const categoryId in posData.products) {
-                    const categoryName = posData.categories.find(c => c.id === categoryId)?.name || `Unbekannte Kategorie (${categoryId})`;
+                // Sort categories by name for consistent display
+                const sortedCategories = [...posData.categories].sort((a, b) => a.name.localeCompare(b.name));
+
+                if (sortedCategories.length === 0) {
+                    productList.innerHTML = '<p class="text-center text-gray-500 mt-4">Bitte zuerst Kategorien hinzufügen.</p>';
+                    return;
+                }
+
+                sortedCategories.forEach(category => {
+                    const categoryId = category.id;
+                    const categoryName = category.name;
                     const categoryHeader = document.createElement('h5');
-                    categoryHeader.classList.add('font-bold', 'text-sm', 'mt-2', 'mb-1');
+                    categoryHeader.classList.add('font-bold', 'text-sm', 'mt-2', 'mb-1', 'text-yellow-300'); // Highlight category name
                     categoryHeader.textContent = categoryName;
                     productList.appendChild(categoryHeader);
 
-                    posData.products[categoryId].sort((a, b) => a.name.localeCompare(b.name)).forEach(product => {
-                        const item = document.createElement('div');
-                        item.classList.add('admin-config-item');
-                        item.innerHTML = `
-                            <span>${product.name} (€${product.price.toFixed(2)})</span>
-                            <div>
-                                <button data-id="${product.id}" class="edit-product-btn bg-blue-500 hover:bg-blue-600">Bearbeiten</button>
-                                <button data-id="${product.id}" class="delete-product-btn delete">Löschen</button>
-                            </div>
-                        `;
-                        productList.appendChild(item);
-                    });
-                }
+                    const productsInCategory = posData.products[categoryId] || [];
+                    if (productsInCategory.length === 0) {
+                        const noProductsMessage = document.createElement('p');
+                        noProductsMessage.classList.add('text-sm', 'text-gray-500', 'ml-4', 'mb-2');
+                        noProductsMessage.textContent = `(Keine Produkte in dieser Kategorie)`;
+                        productList.appendChild(noProductsMessage);
+                    } else {
+                        productsInCategory.sort((a, b) => a.name.localeCompare(b.name)).forEach(product => {
+                            const item = document.createElement('div');
+                            item.classList.add('admin-config-item');
+                            item.innerHTML = `
+                                <span>${product.name} (€${product.price.toFixed(2)})</span>
+                                <div>
+                                    <button data-id="${product.id}" class="edit-product-btn bg-blue-500 hover:bg-blue-600">Bearbeiten</button>
+                                    <button data-id="${product.id}" class="delete-product-btn delete">Löschen</button>
+                                </div>
+                            `;
+                            productList.appendChild(item);
+                        });
+                    }
+                });
+                
 
                 document.querySelectorAll('.edit-product-btn').forEach(button => {
                     button.addEventListener('click', (e) => {
@@ -1712,31 +1748,30 @@
 
                 if (input) {
                     if (input === 'X') {
-                        multiplier = parseFloat(currentInput);
+                        // When 'X' is pressed, the currentInput becomes the multiplier
+                        multiplier = parseFloat(currentInput || '1'); // If input is empty, default to 1
                         if (isNaN(multiplier) || multiplier <= 0) {
                             multiplier = 1; // Default to 1 if invalid input
                             showMessageBox('Hinweis', 'Ungültiger Multiplikator. Setze auf 1.');
                         }
-                        currentInput = '0.00';
+                        currentInput = ''; // Clear input display after setting multiplier
                     } else if (input === '.') {
                         if (!currentInput.includes('.')) {
                             currentInput += '.';
                         }
-                    } else {
-                        if (currentInput === '0.00' || currentInput === '0') {
+                    } else if (input === '00') {
+                        // Append 00, but handle initial empty or zero state
+                        if (currentInput === '' || currentInput === '0') {
+                            currentInput = '0'; // Keep as '0' or empty if no other digits
+                        } else {
+                            currentInput += input;
+                        }
+                    } else { // For digits 0-9
+                        if (currentInput === '0' && input !== '.') { // Prevent multiple leading zeros, unless it's a decimal
                             currentInput = input;
                         } else {
                             currentInput += input;
                         }
-                    }
-                    // Format to two decimal places if a decimal point exists, otherwise keep as is
-                    if (currentInput.includes('.')) {
-                        const parts = currentInput.split('.');
-                        if (parts[1].length > 2) {
-                            currentInput = parseFloat(currentInput).toFixed(2);
-                        }
-                    } else if (currentInput.length > 1 && currentInput.startsWith('0') && !currentInput.includes('.')) {
-                        currentInput = currentInput.substring(1); // Remove leading zero unless it's "0."
                     }
                 } else if (action === 'function') {
                     if (func === 'zws') {
@@ -1744,24 +1779,25 @@
                         totalAmount.textContent = subtotalAmount.textContent;
                         cashGiven = 0; // Reset cash given for new total
                         updateChange();
+                        currentInput = ''; // Clear input display after ZWS
                     } else if (func === 'bar') {
-                        cashGiven = parseFloat(currentInput);
+                        cashGiven = parseFloat(currentInput || '0'); // Use 0 if input is empty
                         if (isNaN(cashGiven) || cashGiven < 0) {
                             cashGiven = 0;
                             showMessageBox('Hinweis', 'Ungültiger Barbetrag.');
                         }
                         updateChange();
-                        currentInput = '0.00'; // Reset input display
+                        currentInput = ''; // Reset input display after BAR
                         processPayment();
                     }
                 }
-                inputDisplay.textContent = parseFloat(currentInput).toFixed(2); // Always display with 2 decimals
+                inputDisplay.textContent = formatInputDisplay(currentInput);
             });
         });
 
         clearInputButton.addEventListener('click', () => {
-            currentInput = '0.00';
-            inputDisplay.textContent = currentInput;
+            currentInput = ''; // Changed to empty string for true clear
+            inputDisplay.textContent = formatInputDisplay(currentInput); // Will display "0.00"
             multiplier = 1; // Also reset multiplier
             cashGiven = 0; // Reset cash given
             updateChange(); // Update change display
@@ -1838,23 +1874,20 @@
         cashRegisterSelect.addEventListener('change', (event) => {
             currentRegisterId = event.target.value;
             showMessageBox('Kasse gewechselt', `Sie nutzen jetzt ${cashRegisterSelect.options[cashRegisterSelect.selectedIndex].text}.`);
-            // Re-authenticate if necessary or re-setup listeners for the new register ID if it changes the data path for orders
-            // For this specific setup (only liveOrders change per register, categories/products are global),
-            // we just need to ensure saveLiveOrderToFirestore uses the new ID.
-            // No need to re-setup all listeners as categories/products/sellers are common.
-            // However, we should clear the current order and trigger a save to clear the display for the *previous* register.
+            
+            // Clear current order on register switch to avoid confusion
             currentOrder = [];
             renderOrder();
-            saveLiveOrderToFirestore(); // This will save an empty order to the *old* register's path if not yet switched
-            // After changing the currentRegisterId, the next saveLiveOrderToFirestore will use the new one.
-            // If the display needs to immediately reflect the switch, the display.html also needs to react.
+            // Trigger a save to clear the display associated with the *old* register ID
+            // And then the next save will be for the *new* register ID.
+            saveLiveOrderToFirestore(); // This will use the *new* currentRegisterId
         });
 
 
         // Initial rendering of categories when the page loads
         initializeFirebase();
         renderOrder(); // Render initial empty order
-        inputDisplay.textContent = currentInput; // Set initial display to 0.00
+        inputDisplay.textContent = formatInputDisplay(currentInput); // Set initial display to "0.00"
 
         // Time and Date Update
         function updateDateTime() {
